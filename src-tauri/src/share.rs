@@ -1,0 +1,277 @@
+//! Sending files elsewhere, only when the user asks:
+//! - to a phone on the same Wi-Fi (one-time link, LAN address only, expires),
+//! - to the user's own Cloudflare R2 bucket (link copied).
+//!
+//! It also translates or summarises text with the user's own Claude API key.
+
+use crate::{engines::security::{curl, curl_secret}, engines::tools::quiet, settings};
+use anyhow::{bail, Context, Result};
+use std::{
+    io::{Read, Write},
+    net::{TcpListener, TcpStream, UdpSocket},
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time::{Duration, Instant},
+};
+
+fn token() -> String {
+    let mut b = [0u8; 16];
+    getrandom::fill(&mut b).expect("no randomness from the OS");
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// This PC's address on the local network (no packet is sent). Only private addresses: on a
+/// public address or a VPN route the link would be reachable from outside the Wi-Fi.
+fn lan_ip() -> Result<std::net::IpAddr> {
+    let s = UdpSocket::bind("0.0.0.0:0")?;
+    s.connect("192.168.0.1:9")?;
+    let ip = s.local_addr()?.ip();
+    if !is_private(ip) {
+        bail!("not connected to a private local network (Wi-Fi or home network), so the phone link wasn't opened");
+    }
+    Ok(ip)
+}
+
+fn is_private(ip: std::net::IpAddr) -> bool {
+    match ip {
+        // 10/8, 172.16/12, 192.168/16, 169.254/16
+        std::net::IpAddr::V4(v) => v.is_private() || v.is_link_local(),
+        // fc00::/7 (unique local) and fe80::/10 (link-local)
+        std::net::IpAddr::V6(v) => (v.segments()[0] & 0xfe00) == 0xfc00 || (v.segments()[0] & 0xffc0) == 0xfe80,
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct LanShare {
+    url: String,
+    /// QR code as an SVG string
+    qr: String,
+    minutes: u64,
+}
+
+const LAN_MINUTES: u64 = 10;
+
+/// Serves one file (several are zipped first) at a secret link on the LAN for 10 minutes.
+/// Only that exact URL answers; there are no uploads and nothing else is served.
+#[tauri::command]
+pub async fn share_lan(paths: Vec<String>) -> Result<LanShare, String> {
+    tauri::async_runtime::spawn_blocking(move || lan(paths).map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?
+}
+
+fn lan(paths: Vec<String>) -> Result<LanShare> {
+    let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).filter(|p| p.is_file()).collect();
+    let file = match paths.as_slice() {
+        [] => bail!("no files"),
+        [one] => one.clone(),
+        many => {
+            let out = crate::engines::run(many, &crate::engines::Action::Zip, &|_| {})?;
+            out.into_iter().next().context("zip failed")?
+        }
+    };
+    let ip = lan_ip()?;
+    // bound to the LAN address only, never 0.0.0.0
+    let listener = TcpListener::bind((ip, 0))?;
+    let port = listener.local_addr()?.port();
+    let tok = token();
+    let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or("file".into());
+    let enc: String = name.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
+    let url = format!("http://{ip}:{port}/{tok}/{enc}");
+    let qr = qrcode::QrCode::new(url.as_bytes())?.render::<qrcode::render::svg::Color>().min_dimensions(240, 240).build();
+    let prefix = format!("/{tok}/");
+    std::thread::spawn(move || serve(listener, file, prefix, Duration::from_secs(LAN_MINUTES * 60)));
+    Ok(LanShare { url, qr, minutes: LAN_MINUTES })
+}
+
+/// The request line, after reading the whole request head (at most 8 KB within 3 seconds), so a
+/// client that trickles bytes can't hold a connection, and closing after the reply doesn't reset
+/// the download (Windows resets a socket that is closed with unread data).
+fn request_line(s: &TcpStream) -> Option<String> {
+    let until = Instant::now() + Duration::from_secs(3);
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    let mut r = s;
+    while head.len() < 8192 && Instant::now() < until {
+        match r.read(&mut byte) {
+            Ok(1) => {
+                head.push(byte[0]);
+                if head.ends_with(b"\r\n\r\n") || head.ends_with(b"\n\n") {
+                    let line = head.split(|&b| b == b'\n').next()?;
+                    return String::from_utf8(line.to_vec()).ok().map(|l| l.trim_end().to_string());
+                }
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// Phones and browsers sometimes open a second connection; more than this at once is refused.
+const MAX_CONNECTIONS: usize = 4;
+
+fn serve(listener: TcpListener, file: PathBuf, prefix: String, life: Duration) {
+    let end = Arc::new(Mutex::new(Instant::now() + life));
+    let open = Arc::new(AtomicUsize::new(0));
+    let file = Arc::new(file);
+    let prefix = Arc::new(prefix);
+    let _ = listener.set_nonblocking(true);
+    while Instant::now() < *end.lock().unwrap_or_else(|e| e.into_inner()) {
+        let Ok((s, _)) = listener.accept() else {
+            std::thread::sleep(Duration::from_millis(200));
+            continue;
+        };
+        // a device that connects and stays silent can't block the real download
+        if open.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
+            continue;
+        }
+        open.fetch_add(1, Ordering::SeqCst);
+        let (end, open, file, prefix) = (end.clone(), open.clone(), file.clone(), prefix.clone());
+        std::thread::spawn(move || {
+            answer(s, &file, &prefix, &end);
+            open.fetch_sub(1, Ordering::SeqCst);
+        });
+    }
+}
+
+fn answer(mut s: TcpStream, file: &Path, prefix: &str, end: &Mutex<Instant>) {
+    let deadline = || *end.lock().unwrap_or_else(|e| e.into_inner());
+    let _ = s.set_nonblocking(false);
+    let _ = s.set_read_timeout(Some(Duration::from_secs(3)));
+    // a client that stops reading must not hold a connection slot forever
+    let _ = s.set_write_timeout(Some(Duration::from_secs(30)));
+    let Some(line) = request_line(&s) else { return };
+    let path = line.split_whitespace().nth(1).unwrap_or("");
+    if !line.starts_with("GET ") || !path.starts_with(prefix) {
+        let _ = s.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        return;
+    }
+    let Ok(mut f) = std::fs::File::open(file) else { return };
+    let len = f.metadata().map(|m| m.len()).unwrap_or(0);
+    let name = file.file_name().map(|n| n.to_string_lossy().replace('"', "")).unwrap_or_default();
+    let head = format!("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len}\r\nContent-Disposition: attachment; filename*=UTF-8''{}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n", urlenc(&name));
+    if s.write_all(head.as_bytes()).is_err() {
+        return;
+    }
+    let mut buf = vec![0u8; 1 << 16];
+    let mut sent = 0u64;
+    while let Ok(n) = f.read(&mut buf) {
+        // the link's time limit holds during a slow download too
+        if n == 0 || Instant::now() > deadline() + Duration::from_secs(120) || s.write_all(&buf[..n]).is_err() {
+            break;
+        }
+        sent += n as u64;
+    }
+    let _ = s.flush();
+    if sent == len {
+        // once the phone has the file the link closes; a minute's grace covers browsers
+        // that hand the download to a download manager which fetches it again
+        let mut e = end.lock().unwrap_or_else(|e| e.into_inner());
+        *e = (*e).min(Instant::now() + Duration::from_secs(60));
+    }
+}
+
+fn urlenc(s: &str) -> String {
+    s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect()
+}
+
+/// Uploads to the user's R2 bucket (S3 API, signed by curl) and copies the public link.
+#[tauri::command]
+pub async fn share_r2(paths: Vec<String>) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || r2(paths).map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?
+}
+
+fn r2(paths: Vec<String>) -> Result<Vec<String>> {
+    let s = settings::current();
+    if [&s.r2_account, &s.r2_key, &s.r2_secret, &s.r2_bucket].iter().any(|v| v.trim().is_empty()) {
+        bail!("set up Cloudflare R2 in Settings first");
+    }
+    // the account and bucket end up in the upload URL: only the characters R2 allows
+    let plain = |v: &str| !v.is_empty() && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+    if !plain(s.r2_account.trim()) || !plain(s.r2_bucket.trim()) {
+        bail!("the R2 account ID and bucket name may only use letters, digits and dashes");
+    }
+    let mut links = Vec::new();
+    for p in paths.iter().map(Path::new).filter(|p| p.is_file()) {
+        let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        // a random folder keeps links unguessable even in a public bucket
+        let key = format!("{}/{}", &token()[..12], urlenc(&name));
+        let url = format!("https://{}.r2.cloudflarestorage.com/{}/{key}", s.r2_account.trim(), s.r2_bucket.trim());
+        let o = curl_secret(
+            quiet(&curl()).args(["-sS", "-g", "--fail-with-body", "--max-time", "600", "--aws-sigv4", "aws:amz:auto:s3", "-T"]).arg(p).arg(&url),
+            &format!("user = \"{}:{}\"", s.r2_key.trim(), s.r2_secret.trim()),
+        )?;
+        if !o.status.success() {
+            bail!("upload failed: {}", String::from_utf8_lossy(&o.stdout).chars().take(200).collect::<String>());
+        }
+        let base = s.r2_public.trim().trim_end_matches('/');
+        links.push(if base.is_empty() { url } else { format!("{base}/{key}") });
+    }
+    if links.is_empty() {
+        bail!("none of these could be uploaded (only files can be)");
+    }
+    crate::clipboard::set(&links.join("\r\n"))?;
+    Ok(links)
+}
+
+// --- Claude: translate / summarise text files with the user's API key -------------------------
+
+const MODEL: &str = "claude-opus-5-5";
+/// Larger files are refused rather than silently cut.
+const MAX_CHARS: usize = 600_000;
+
+pub fn ask_claude(src: &Path, task: &str, lang: &str) -> Result<PathBuf> {
+    let key = settings::current().anthropic_key;
+    if key.trim().is_empty() {
+        bail!("add your Claude API key in Settings › Online services");
+    }
+    let text = std::fs::read_to_string(src).context("not a text file")?;
+    if text.chars().count() > MAX_CHARS {
+        bail!("the file is too long to send in one go ({} characters, limit {MAX_CHARS})", text.chars().count());
+    }
+    let lang = if lang.trim().is_empty() { "Vietnamese" } else { lang.trim() };
+    let instruction = match task {
+        "translate" => format!("Translate the document below into {lang}. Keep its formatting (Markdown, line breaks, lists, code) and do not add notes. Reply with the translation only."),
+        _ => format!("Summarise the document below in {lang}: a one-sentence overview, then the key points as a short bullet list. Reply with the summary only."),
+    };
+    let body = serde_json::json!({
+        "model": MODEL,
+        "max_tokens": 64000,
+        "stream": false,
+        "fallbacks": "default",
+        "messages": [{ "role": "user", "content": format!("{instruction}\n\n<document>\n{text}\n</document>") }],
+    });
+    let req = crate::naming::temp_file("json");
+    std::fs::write(&req, serde_json::to_vec(&body)?)?;
+    let o = curl_secret(
+        quiet(&curl())
+            .args(["-sS", "--max-time", "900", "https://api.anthropic.com/v1/messages", "-H", "content-type: application/json", "-H", "anthropic-version: 2023-06-01"])
+            .args(["-H", "anthropic-beta: server-side-fallback-2026-07-01", "--data-binary"])
+            .arg(format!("@{}", req.display())),
+        &format!("header = \"x-api-key: {}\"", key.trim()),
+    );
+    let _ = std::fs::remove_file(&req);
+    let v: serde_json::Value = serde_json::from_slice(&o?.stdout).context("no answer from the Claude API")?;
+    if let Some(e) = v["error"]["message"].as_str() {
+        bail!("Claude API: {e}");
+    }
+    if v["stop_reason"] == "refusal" {
+        bail!("Claude declined this document");
+    }
+    let out_text: String = v["content"].as_array().map(|a| a.iter().filter(|b| b["type"] == "text").filter_map(|b| b["text"].as_str()).collect::<Vec<_>>().join("")).unwrap_or_default();
+    if out_text.trim().is_empty() {
+        bail!("the answer was empty");
+    }
+    // the language ends up in the file name: letters, digits, spaces and dashes only
+    let safe_lang: String = lang.chars().filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-')).take(40).collect();
+    let suffix = match task {
+        "translate" if !safe_lang.trim().is_empty() => safe_lang.trim().to_string(),
+        "translate" => "translated".into(),
+        _ => "summary".into(),
+    };
+    let e = crate::naming::ext(src);
+    let out = crate::naming::out_path(src, Some(&suffix), if e.is_empty() { "txt" } else { &e });
+    std::fs::write(&out, out_text)?;
+    Ok(out)
+}

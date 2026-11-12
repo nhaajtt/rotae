@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Rotae: the old way, and the short way</title>
+<style>
+  @font-face { font-family: 'Geist'; src: url('../website/fonts/Geist-100-900-latin.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Geist Mono'; src: url('../website/fonts/GeistMono-100-900-latin.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Departure Mono'; src: url('../website/fonts/DepartureMono-Regular.woff2') format('woff2'); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0b0d14; color: #fff; font-family: 'Geist', 'Segoe UI', sans-serif; }
+  #stage { position: absolute; inset: 0; overflow: hidden;
+    background: linear-gradient(#ffffff0d 1px, #0000 1px) 0 0 / 100% 72px, linear-gradient(90deg, #ffffff0d 1px, #0000 1px) 0 0 / 72px 100%, #0b0d14; }
+  #stage::after { content: ''; position: absolute; inset: 0; background: radial-gradient(75% 75% at 50% 50%, #0000 0%, #0b0d14 100%); }
+  #glow { position: absolute; left: 900px; top: 140px; width: 900px; height: 800px; border-radius: 50%; filter: blur(140px); background: #8f8df9; opacity: .16; }
+  .scene { position: absolute; inset: 0; z-index: 2; opacity: 0; }
+
+  /* left column */
+  .col { position: absolute; left: 130px; top: 250px; width: 660px; }
+  .k { font: 26px 'Departure Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #8f8df9; margin: 0 0 30px; }
+  .k.old { color: #ff7a7a; }
+  .col h1 { margin: 0; font-size: 104px; line-height: 1.02; font-weight: 600; letter-spacing: -0.045em; }
+  .col h1 span { display: block; }
+  .count { display: flex; align-items: baseline; gap: 22px; margin-top: 64px; }
+  .count b { display: inline-block; font: 600 150px/1 'Geist', sans-serif; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; transform-origin: 0 100%; }
+  .count span { font: 30px 'Geist Mono', monospace; color: #8b90a3; }
+  .count.old b { color: #ff7a7a; }
+  .count.new b { color: #8f8df9; }
+
+  /* right panel: a browser window, then a desktop */
+  .panel { position: absolute; left: 870px; top: 200px; width: 920px; height: 680px; border-radius: 26px; background: #131826; border: 1px solid #ffffff1f; box-shadow: 0 50px 120px #000a; overflow: hidden; }
+  .bar { height: 62px; display: flex; align-items: center; gap: 10px; padding: 0 22px; border-bottom: 1px solid #ffffff14; }
+  .bar i { width: 13px; height: 13px; border-radius: 50%; background: #ffffff24; }
+  .bar span { margin-left: 16px; flex: 1; height: 36px; border-radius: 18px; background: #0b0d14; padding: 0 18px; font: 17px/36px 'Geist Mono', monospace; color: #8b90a3; white-space: nowrap; overflow: hidden; }
+  .row { position: absolute; left: 34px; right: 34px; height: 70px; display: flex; align-items: center; gap: 24px; font-size: 31px; letter-spacing: -0.015em; border-bottom: 1px solid #ffffff12; }
+  .row em { font: normal 20px 'Departure Mono', monospace; color: #ff7a7a; width: 40px; }
+  .row .wait { margin-left: auto; width: 190px; height: 8px; border-radius: 4px; background: #ffffff1a; overflow: hidden; }
+  .row .wait u { display: block; height: 100%; width: 0; background: #ff7a7a; }
+  .ad { position: absolute; z-index: 5; border-radius: 14px; background: #f4d35e; color: #1b1608; display: grid; place-items: center; font: 700 30px 'Geist', sans-serif; box-shadow: 0 24px 60px #000b; }
+  .ad::after { content: '×'; position: absolute; right: 12px; top: 4px; font-size: 26px; font-weight: 400; }
+  .ad small { display: block; font: 15px 'Geist Mono', monospace; font-weight: 400; opacity: .7; }
+
+  /* desktop */
+  .desk { background: radial-gradient(90% 90% at 70% 40%, #1b2140 0%, #131826 70%); }
+  .dicon { position: absolute; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 6px 10px; border-radius: 10px; font-size: 21px; color: #e8eaf5; }
+  .dicon.sel { background: #8f8df926; box-shadow: inset 0 0 0 1px #8f8df966; }
+  .photo { width: 96px; height: 72px; border-radius: 6px; border: 3px solid #fff; position: relative; box-shadow: 0 6px 14px #0008;
+    background: linear-gradient(#ff9a5a 0 40%, #ffcf6e 40% 46%, #2a7bd8 46% 100%); }
+  .photo::after { content: ''; position: absolute; left: 54px; top: 10px; width: 19px; height: 19px; border-radius: 50%; background: #fff5c2; }
+  #ghost { position: absolute; z-index: 6; opacity: 0; margin: -39px 0 0 -51px; }
+  #wheel { position: absolute; z-index: 4; width: 460px; height: 460px; opacity: 0; }
+  #disc { position: absolute; left: 80px; top: 80px; width: 300px; height: 300px; border-radius: 50%; background: #0b0d14d9; box-shadow: 0 30px 80px #000a, 0 0 0 1px #ffffff26; }
+  #svg { position: absolute; inset: 0; overflow: visible; }
+  .seg { fill: #ffffff0d; stroke: #ffffff24; stroke-width: 1; }
+  .ring2 .seg { fill: #0b0d14e6; }
+  .seg.hot { fill: #8f8df9; stroke: #c5c7ff; }
+  text { fill: #e8eaf5; font-family: 'Geist', 'Segoe UI Symbol', sans-serif; }
+  .glyph { font-size: 17px; font-family: 'Segoe UI Symbol', 'Geist', sans-serif; }
+  .name { font-size: 10.5px; font-weight: 500; }
+  .num { font: 7.5px 'Geist Mono', monospace; fill: #8b90a3; }
+  .sub { font-size: 12px; font-weight: 600; }
+  .hot-l text { fill: #0b0d14; }
+  .core { fill: #131826; stroke: #8f8df9; stroke-width: 1.5; }
+  .clabel { font-size: 14px; font-weight: 600; }
+  .chint { font: 8px 'Geist Mono', monospace; fill: #8b90a3; }
+  #key { position: absolute; left: 40px; bottom: 36px; z-index: 7; padding: 14px 30px; border-radius: 14px; font: 600 26px 'Geist Mono', monospace; color: #0b0d14; background: #e8eaf5; box-shadow: 0 7px 0 #8b90a3; opacity: 0; }
+  #toast { position: absolute; right: 34px; bottom: 34px; z-index: 7; padding: 18px 24px; border-radius: 16px; background: #0b0d14e6; border: 1px solid #ffffff26; font-size: 22px; opacity: 0; box-shadow: 0 20px 50px #0009; }
+  #toast b { font: 15px 'Departure Mono', monospace; color: #6ee7a8; letter-spacing: .1em; margin-right: 14px; }
+  #toast span { color: #8b90a3; }
+  #cursor { position: absolute; z-index: 9; width: 30px; height: 40px; margin: -2px 0 0 -3px; }
+
+  /* facts and closing title */
+  #s4 .fact { position: absolute; left: 300px; display: flex; align-items: baseline; gap: 40px; font-size: 92px; font-weight: 600; letter-spacing: -0.04em; }
+  #s4 .fact em { font: normal 26px 'Departure Mono', monospace; color: #8f8df9; letter-spacing: .1em; }
+  #s5 { display: grid; place-items: center; text-align: center; }
+  #s5 .mark { width: 120px; height: 120px; margin: 0 auto 34px; border-radius: 32px; display: grid; place-items: center; font: 64px 'Segoe UI Symbol', sans-serif; background: linear-gradient(135deg, #4f8bff, #8b5cf6); box-shadow: 0 30px 80px #5b5cf666; }
+  #s5 h2 { margin: 0; font-size: 132px; font-weight: 650; letter-spacing: -0.05em; }
+  #s5 p { margin: 16px 0 0; font-size: 40px; color: #b6bacb; }
+  #s5 .url { margin-top: 40px; font: 28px 'Geist Mono', monospace; color: #8f8df9; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+
+  <div class="scene" id="s1">
+    <div class="col" id="c1">
+      <p class="k old">The old way</p>
+      <h1>Convert<br />one photo.</h1>
+      <div class="count old"><b id="n1">0</b><span>steps</span></div>
+    </div>
+    <div class="panel" id="win">
+      <div class="bar"><i></i><i></i><i></i><span id="q"></span></div>
+      <div id="rows"></div>
+    </div>
+    <div class="ad" id="ad1" style="left:1290px;top:330px;width:380px;height:230px"><div>HOT DEALS<small>sponsored</small></div></div>
+    <div class="ad" id="ad2" style="left:1010px;top:520px;width:330px;height:200px"><div>YOU WON!<small>sponsored</small></div></div>
+  </div>
+
+  <div class="scene" id="s3">
+    <div class="col">
+      <p class="k">With Rotae</p>
+      <h1><span id="w1">Drag.</span><span id="w2">Shift.</span><span id="w3">Drop.</span></h1>
+      <div class="count new" id="cn"><b id="n3">1</b><span>gesture</span></div>
+    </div>
+    <div class="panel desk" id="desk">
+      <div class="dicon" id="orig" style="left:100px;top:255px"><div class="photo"></div><div>Beach.heic</div></div>
+      <div class="dicon" id="made" style="left:100px;top:440px"><div class="photo" style="filter:saturate(1.25)"></div><div>Beach.png</div></div>
+      <div id="wheel"><div id="disc"></div><svg id="svg" viewBox="0 0 460 460"></svg></div>
+      <div class="photo" id="ghost"></div>
+      <div id="key">Shift</div>
+      <div id="toast"><b>DONE</b>Beach.png <span>saved next to the original</span></div>
+      <svg id="cursor" viewBox="0 0 24 32"><path d="M2 1 L2 25 L8 19.5 L12.2 29 L16.4 27.2 L12.3 18 L20 18 Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <div class="scene" id="s4">
+    <div class="fact" style="top:270px"><em>01</em><span>Nothing is uploaded.</span></div>
+    <div class="fact" style="top:470px"><em>02</em><span>No account. No tracking.</span></div>
+    <div class="fact" style="top:670px"><em>03</em><span>Free, for Windows 10 and 11.</span></div>
+  </div>
+
+  <div class="scene" id="s5">
+    <div><img class="mark" src="../brand/icon.png" alt="" style="background:none;display:block" /><h2>Rotae</h2><p>Shift + drag any file.</p><div class="url">rotae.nhaajt.com</div></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const out = (x) => 1 - Math.pow(1 - x, 3);
+const spring = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.exp(-6 * x) * Math.cos(9 * x));
+const lerp = (a, b, x) => a + (b - a) * x;
+const fade = (t, a, b, c, d) => Math.min(seg(t, a, b), 1 - seg(t, c, d));
+// a point moving through timed stops: [[time, x, y], …]
+function along(t, stops) {
+  if (t <= stops[0][0]) return [stops[0][1], stops[0][2]];
+  for (let i = 1; i < stops.length; i++) {
+    const [t0, x0, y0] = stops[i - 1], [t1, x1, y1] = stops[i];
+    if (t <= t1) { const k = ease(seg(t, t0, t1)); return [lerp(x0, x1, k), lerp(y0, y1, k)]; }
+  }
+  const l = stops[stops.length - 1];
+  return [l[1], l[2]];
+}
+
+// --- scene 1: every step of doing it through a converter website
+const QUERY = 'heic to png converter free online';
+const STEPS = ['Search for a converter', 'Dismiss the cookie banner', 'Close two ads', 'Upload your photo to a stranger', 'Wait', 'Find the real download button', 'Dig it out of Downloads'];
+const ST = STEPS.map((_, i) => 1.0 + i * 1.05);
+const rows = STEPS.map((s, i) => {
+  const d = document.createElement('div');
+  d.className = 'row';
+  d.style.top = `${84 + i * 76}px`;
+  d.innerHTML = `<em>${String(i + 1).padStart(2, '0')}</em><span>${s}</span>${i === 4 ? '<div class="wait"><u></u></div>' : ''}`;
+  $('rows').append(d);
+  return d;
+});
+const waitBar = rows[4].querySelector('u');
+
+// --- scene 3: the wheel (the app's geometry: core 52, ring 58–146, options 152–212)
+const C = 230, NS = 'http://www.w3.org/2000/svg', SCALE = 1.3, WX = 590, WY = 335;
+const pt = (r, deg) => [C + r * Math.cos(((deg - 90) * Math.PI) / 180), C + r * Math.sin(((deg - 90) * Math.PI) / 180)];
+function sector(r0, r1, a0, a1) {
+  const L = a1 - a0 > 180 ? 1 : 0, [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0);
+  return `M${x0} ${y0}A${r1} ${r1} 0 ${L} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${L} 0 ${x3} ${y3}Z`;
+}
+const el = (tag, a, into) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); into?.append(e); return e; };
+const txt = (into, x, y, cls, s) => { const e = el('text', { x, y, class: cls, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, into); e.textContent = s; return e; };
+const ITEMS = [['⇄', 'Convert'], ['⇲', 'Compress'], ['⤡', 'Resize'], ['↻', 'Rotate'], ['⌗', 'Crop'], ['▣', 'Add BG'], ['T', 'Copy text'], ['⋯', 'More']];
+const SUBS = ['PNG', 'JPG', 'WEBP', 'AVIF', 'PDF'];
+const svg = $('svg'), S = 360 / ITEMS.length;
+const segs = ITEMS.map(([g, name], i) => {
+  const gr = el('g', {}, svg);
+  const p = el('path', { d: sector(58, 146, i * S - S / 2, i * S + S / 2), class: 'seg' }, gr);
+  const [x, y] = pt(102, i * S);
+  txt(gr, x, y - 8, 'glyph', g); txt(gr, x, y + 12, 'name', name);
+  const [nx, ny] = pt(135, i * S); txt(gr, nx, ny, 'num', i + 1);
+  return { gr, p };
+});
+const ring2 = el('g', { class: 'ring2', opacity: 0 }, svg);
+const SW = 34, START = -(SW * SUBS.length) / 2;
+const subs = SUBS.map((name, j) => {
+  const gr = el('g', {}, ring2);
+  const p = el('path', { d: sector(152, 212, START + j * SW, START + (j + 1) * SW), class: 'seg' }, gr);
+  const mid = START + j * SW + SW / 2, [x, y] = pt(182, mid);
+  txt(gr, x, y, 'sub', name);
+  return { gr, p, mid };
+});
+el('circle', { cx: C, cy: C, r: 52, class: 'core' }, svg);
+txt(svg, C, C - 6, 'clabel', '→ JPG');
+txt(svg, C, C + 14, 'chint', 'drop here');
+const onWheel = (r, deg) => { const [x, y] = pt(r, deg); return [WX + (x - C) * SCALE, WY + (y - C) * SCALE]; };
+const wheelEl = $('wheel');
+wheelEl.style.left = `${WX - 230}px`;
+wheelEl.style.top = `${WY - 230}px`;
+
+const ORIG = [175, 306]; // the middle of Beach.heic's picture, in panel pixels
+const [cvx, cvy] = onWheel(102, 0), [pgx, pgy] = onWheel(182, subs[0].mid);
+const CURSOR = [[10.6, 780, 640], [11.5, ...ORIG], [11.8, ...ORIG], [12.7, WX, WY], [13.5, WX, WY], [14.1, cvx, cvy], [14.5, cvx, cvy], [15.1, pgx, pgy], [15.6, pgx, pgy], [16.5, 640, 470]];
+
+function render(t) {
+  // scene 1
+  $('s1').style.opacity = fade(t, 0, 0.5, 9.2, 9.9);
+  const typed = Math.round(QUERY.length * seg(t, 0.3, 1.3));
+  $('q').textContent = QUERY.slice(0, typed) + (typed < QUERY.length ? '▍' : '');
+  let n = 0, last = 0;
+  rows.forEach((r, i) => {
+    const a = ST[i], next = ST[i + 1] ?? 99;
+    if (t >= a) { n = i + 1; last = a; }
+    const k = out(seg(t, a, a + 0.35));
+    r.style.opacity = k * lerp(1, 0.42, seg(t, next, next + 0.3));
+    r.style.transform = `translateX(${lerp(40, 0, k)}px)`;
+  });
+  waitBar.style.width = `${seg(t, ST[4] + 0.2, ST[5] - 0.1) * 100}%`;
+  $('n1').textContent = n;
+  $('n1').style.transform = `scale(${1 + 0.22 * (1 - out(seg(t, last, last + 0.35)))})`;
+  const fall = ease(seg(t, 8.9, 9.9));
+  $('win').style.transform = `translateY(${fall * 90}px) rotate(${fall * 2.5}deg)`;
+  [['ad1', ST[2] + 0.05, ST[2] + 0.75], ['ad2', ST[2] + 0.25, ST[2] + 0.98]].forEach(([id, a, b]) => {
+    const o = fade(t, a, a + 0.18, b, b + 0.12);
+    $(id).style.opacity = o;
+    $(id).style.transform = `scale(${lerp(0.8, 1, spring(seg(t, a, a + 0.4)))})`;
+  });
+
+  // scene 3
+  $('s3').style.opacity = fade(t, 9.7, 10.4, 18.5, 19.1);
+  const lit = (id, at) => ($(id).style.opacity = lerp(0.22, 1, out(seg(t, at, at + 0.3))));
+  lit('w1', 11.8); lit('w2', 12.7); lit('w3', 15.3);
+  $('cn').style.opacity = out(seg(t, 15.6, 16.0));
+  $('n3').style.transform = `scale(${lerp(0.6, 1, spring(seg(t, 15.6, 16.3)))})`;
+
+  const [cx, cy] = along(t, CURSOR);
+  $('cursor').style.left = `${cx}px`;
+  $('cursor').style.top = `${cy}px`;
+  const dragging = t >= 11.8 && t < 15.3;
+  $('orig').classList.toggle('sel', t >= 11.5 && t < 15.3);
+  $('orig').querySelector('.photo').style.opacity = dragging ? 0.45 : 1;
+  const g = $('ghost');
+  g.style.opacity = dragging ? 0.92 : 0;
+  g.style.left = `${cx}px`;
+  g.style.top = `${cy}px`;
+  g.style.transform = `scale(${lerp(1, 0.62, seg(t, 12.7, 13.2))})`;
+
+  const open = spring(seg(t, 12.8, 13.4)) * (1 - ease(seg(t, 15.3, 15.6)));
+  wheelEl.style.opacity = clamp(open * 1.6);
+  wheelEl.style.transform = `scale(${SCALE * lerp(0.7, 1, open)})`;
+  ring2.setAttribute('opacity', seg(t, 14.1, 14.4));
+  const hi = t >= 13.95 && t < 15.3 ? 0 : -1, hj = t >= 14.95 && t < 15.3 ? 0 : -1;
+  segs.forEach((s, k) => { s.p.classList.toggle('hot', k === hi); s.gr.classList.toggle('hot-l', k === hi); });
+  subs.forEach((s, k) => { s.p.classList.toggle('hot', k === hj); s.gr.classList.toggle('hot-l', k === hj); });
+
+  const held = fade(t, 12.6, 12.75, 15.3, 15.5);
+  $('key').style.opacity = held;
+  $('key').style.transform = `translateY(${held * 5}px)`;
+  $('key').style.boxShadow = `0 ${lerp(7, 2, held)}px 0 #8b90a3`;
+
+  const born = spring(seg(t, 15.4, 16.1));
+  $('made').style.opacity = clamp(born * 2);
+  $('made').style.transform = `scale(${lerp(0.5, 1, born)})`;
+  const toast = out(seg(t, 15.5, 15.9));
+  $('toast').style.opacity = toast;
+  $('toast').style.transform = `translateY(${lerp(24, 0, toast)}px)`;
+
+  // scene 4
+  $('s4').style.opacity = 1 - seg(t, 22.3, 22.8);
+  document.querySelectorAll('.fact').forEach((f, i) => {
+    const k = out(seg(t, 19.2 + i * 0.6, 19.8 + i * 0.6));
+    f.style.opacity = k;
+    f.style.transform = `translateY(${lerp(50, 0, k)}px)`;
+  });
+
+  // scene 5
+  const end = out(seg(t, 22.9, 23.6));
+  $('s5').style.opacity = end;
+  $('s5').firstElementChild.style.transform = `scale(${lerp(0.94, 1, end)})`;
+  $('glow').style.opacity = lerp(0.16, 0.3, end) * lerp(0.5, 1, seg(t, 9.7, 10.4));
+}
+
+Promise.all(['600 20px Geist', '500 20px "Geist Mono"', '20px "Departure Mono"'].map((f) => document.fonts.load(f)))
+  .then(() => document.fonts.ready)
+  .then(() => { render(0); window.ready = true; });
+</script>
+</body>
+</html>

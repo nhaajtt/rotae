@@ -1,0 +1,16 @@
+{
+  "name": "rotae",
+  "compatibility_date": "2026-10-01",
+  "main": "./worker.js",
+  // The site is files; only /api/ goes through the worker (the feedback form).
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [{ "binding": "FEEDBACK", "id": "c117b13112cf4c0292f0d6da0b0284ed" }],
+  "routes": [{ "pattern": "rotae.nhaajt.com", "custom_domain": true }],
+  "observability": {
+    "enabled": true
+  }
+}

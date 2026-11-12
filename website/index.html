@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rotae: drag a file, hold Shift, done</title>
+<meta name="description" content="Drag any file and hold Shift: a wheel of actions opens around it. Convert, shrink videos to 8 MB, sign PDFs, copy text from scans, catch fake files, send to your phone. Free and offline, for Windows." />
+<meta property="og:title" content="Rotae" />
+<meta property="og:description" content="Drag a file, hold Shift, done. Free and offline, for Windows." />
+<meta property="og:image" content="/media/intro-poster.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#0b0d14" />
+<link rel="icon" href="/favicon.png" />
+<link rel="preload" href="/fonts/Geist-100-900-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/style.css" />
+<script src="/theme.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="g-sky" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="lab-body" id="top">
+  <header class="hdr">
+    <a class="g-brand" href="#top"><img src="/favicon.png" alt="" width="24" height="24" /><span>Rotae</span></a>
+    <div class="hdr-right">
+      <button type="button" class="hdr-cmd hide-sm" id="jumpOpen" title="Jump to… (Ctrl+K)"><span data-vi="Đi tới">Jump to</span><span class="hdr-cmd-keys" aria-hidden="true"><kbd>Ctrl</kbd><kbd>K</kbd></span></button>
+      <span class="hdr-cmd hdr-seg" role="group" aria-label="Language"><button data-lang="vi">VI</button><button data-lang="en">EN</button></span>
+      <button id="theme" class="hdr-terminal is-plain" aria-label="Toggle dark mode">◐</button>
+      <a class="hdr-terminal is-plain hide-sm" href="https://github.com/nhaajtt/rotae" target="_blank" rel="noopener" aria-label="GitHub"><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg></a>
+      <a class="hdr-terminal dl desk-only" href="https://github.com/nhaajtt/rotae/releases/latest" aria-label="Download" title="Download"><span aria-hidden="true">&gt;</span><span class="hdr-terminal-cursor" aria-hidden="true">_</span></a>
+    </div>
+  </header>
+
+  <section class="lab-intro" aria-labelledby="intro-heading">
+    <div class="lab-intro-main">
+      <h1 class="sr-only" id="intro-heading" data-vi="Rotae: kéo file, giữ Shift, xong">Rotae: drag a file, hold Shift, done</h1>
+      <p class="lab-intro-lede" data-words data-vi="<span class='lab-intro-key lab-intro-name'>ROTAE</span> của <a href='https://www.nhaajt.com' target='_blank' rel='noopener'>Nhaajt</a>. <span class='lab-intro-key'>Kéo một file</span>, <span class='lab-intro-key'>giữ Shift</span>, và một vòng tròn thao tác mở ra quanh nó: đổi định dạng, nén video, ký PDF, lấy chữ từ ảnh, gửi sang điện thoại. <span class='lab-intro-key'>Xong như phép thuật</span>, nhanh hơn cả lúc bạn đi tìm cái web convert đầy quảng cáo kia."><span class="lab-intro-key lab-intro-name">ROTAE</span> by <a href="https://www.nhaajt.com" target="_blank" rel="noopener">Nhaajt</a>. <span class="lab-intro-key">Drag a file</span>, <span class="lab-intro-key">hold Shift</span>, and a wheel of actions opens around it: convert, shrink, sign, OCR and share. <span class="lab-intro-key">Done like magic</span>, faster than you can find that one ad-stuffed converter website again.</p>
+      <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10 và 11. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift.">Free, for Windows 10 and 11. Everything runs on your PC and nothing is uploaded. Tip: start dragging first, then press Shift.</p>
+      <div class="g-top desk-only">
+        <div class="g-cmd">
+          <span aria-hidden="true">PS&gt;</span>
+          <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
+          <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
+        </div>
+        <a id="download" class="g-top-link" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span> <span aria-hidden="true">↓</span></a>
+      </div>
+      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="dán vào PowerShell hoặc Terminal, không cần quyền admin">paste into PowerShell or Terminal, no admin needed</span></p>
+      <div class="on-phone">
+        <p data-vi="Rotae là app cho máy tính Windows. Gửi link sang máy tính để cài nhé:">Rotae is a Windows PC app. Send the link to your computer:</p>
+        <div class="row">
+          <button id="shareLink" class="g-btn"><span data-vi="Gửi link">Send link</span></button>
+          <button id="copyLink" class="g-btn is-quiet" data-vi="Chép link">Copy link</button>
+        </div>
+      </div>
+      <div class="g-tags">
+        <span data-vi="Ăn được hết">Eats</span>
+        <i class="g-tag">JPG</i><i class="g-tag">HEIC</i><i class="g-tag">PNG</i><i class="g-tag">MP4</i><i class="g-tag">MP3</i><i class="g-tag">PDF</i><i class="g-tag">DOCX</i><i class="g-tag">JSON</i><i class="g-tag">EXE</i><i class="g-tag">ZIP</i>
+      </div>
+    </div>
+    <aside class="lab-intro-readout" aria-label="Rotae">
+      <p class="lab-intro-meta"><b id="clock">--:--:--</b><i aria-hidden="true">·</i><span data-vi="trên máy bạn">on your PC</span></p>
+      <div class="lab-intro-controls">
+        <a class="lab-intro-hi dl desk-only" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span><span aria-hidden="true">↓</span></a>
+        <a class="lab-intro-hi" href="https://github.com/nhaajtt/rotae" target="_blank" rel="noopener"><span data-vi="Mã nguồn">Source</span><span aria-hidden="true">↗</span></a>
+        <a class="lab-intro-hi" href="#faq"><span>FAQ</span><span aria-hidden="true">→</span></a>
+      </div>
+      <div class="lab-intro-signoff"><svg width="67" height="42" viewBox="-2 2 67 42" role="img" aria-label="Nhaajt"><path d="M3 33 C5 25 7 14 9.5 7 C12 14 18 27 23 33 C25 26 27 16 29 8" pathLength="1" /><path d="M37 32 C39 24 41 14 43 7 M55 8 C53 17 51 27 50 33 M38 21 C44 18 51 19 57 20" pathLength="1" /><path d="M2 38 C14 40 34 40 61 35" pathLength="1" /></svg></div>
+    </aside>
+  </section>
+
+  <div class="lab-stage" id="demo">
+    <figure class="g-device">
+      <figcaption><i></i><i></i><i></i><span data-vi="Quay trong app, trên file mẫu">Recorded in the app, on sample files</span><b>● REC</b></figcaption>
+      <video id="heroVideo" autoplay muted loop playsinline preload="metadata" poster="/media/intro-poster.jpg">
+        <source src="/media/intro.webm" type="video/webm" />
+        <source src="/media/intro.mp4" type="video/mp4" />
+      </video>
+    </figure>
+  </div>
+
+  <section class="tl" id="timeline" aria-label="Timeline">
+    <div class="tl-scroll"><div class="tl-track" id="tlTrack"></div></div>
+    <p class="tl-hint" aria-hidden="true">← → <span data-vi="kéo ngang để xem lộ trình">swipe through the plan</span></p>
+  </section>
+
+  <section class="g-stats reveal">
+    <div><b class="count" data-to="50" data-suffix="+">0</b><span data-vi="thao tác">actions</span></div>
+    <div><b class="count" data-to="0" data-suffix=" MB">0</b><span data-vi="tải lên server">uploaded anywhere</span></div>
+    <div><b>$0</b><span data-vi="mãi mãi">forever</span></div>
+  </section>
+
+  <main id="main-content">
+    <div class="lab-grid" id="features">
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="01 ĐỔI ĐỊNH DẠNG">01 CONVERT · ANY FORMAT</span>
+        <h2 class="garage-title" data-vi="Đổi mọi định dạng">Converts basically anything</h2>
+        <p class="garage-desc" data-vi="Ảnh HEIC từ iPhone, RAW máy ảnh, WebP, AVIF, video, nhạc, PDF, Word, JSON, YAML… Chọn đích, xong.">iPhone HEIC, camera RAW, WebP, AVIF, video, audio, PDF, Word, JSON, YAML… pick a target, done.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">HEIC</span><span class="g-tag">RAW</span><span class="g-tag">WebP</span><span class="g-tag">PDF</span><span class="g-tag">DOCX</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="02 NÉN VIDEO">02 SHRINK · VIDEO</span>
+        <h2 class="garage-title" data-vi="Video vừa 8 MB">Videos that fit 8 MB</h2>
+        <p class="garage-desc" data-vi="Gửi Zalo, Discord, email không còn bị chê nặng.">Discord, Zalo and email stop complaining.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">MP4</span><span class="g-tag">8 MB</span><span class="g-tag">Discord</span><span class="g-tag">Zalo</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="03 AN TOÀN · FILE GIẢ">03 SAFETY · FAKE FILES</span>
+        <h2 class="garage-title" data-vi="Bắt file giả đuôi">Catches files that lie</h2>
+        <p class="garage-desc" data-vi="“hoadon.pdf.exe” là chương trình, không phải PDF. Vòng tròn đỏ lên báo bạn.">“invoice.pdf.exe” is a program, not a PDF. The wheel turns red.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">.pdf.exe</span><span class="g-tag">EXE</span><span class="g-tag">ZIP</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="04 KÝ PDF">04 SIGN · PDF</span>
+        <h2 class="garage-title" data-vi="Ký PDF">Sign PDFs</h2>
+        <p class="garage-desc" data-vi="Vẽ hoặc gõ chữ ký, đặt vào trang, xong. Không cần in ra.">Draw or type, place it, done. No printer involved.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">PDF</span><span class="g-tag">Draw</span><span class="g-tag">Type</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="05 CHỮ TRONG ẢNH">05 TEXT · FROM PICTURES</span>
+        <h2 class="garage-title" data-vi="Lấy chữ từ ảnh">Copy text from pictures</h2>
+        <p class="garage-desc" data-vi="Ảnh chụp màn hình, bản scan, tiếng Việt cũng được. Chạy offline.">Screenshots, scans, Vietnamese too. Offline.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">OCR</span><span class="g-tag">PNG</span><span class="g-tag">Scans</span><span class="g-tag">Offline</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="06 GỬI SANG ĐIỆN THOẠI">06 SHARE · TO PHONE</span>
+        <h2 class="garage-title" data-vi="Gửi sang điện thoại">Straight to your phone</h2>
+        <p class="garage-desc" data-vi="Quét QR, cùng Wi-Fi, link tự hết hạn sau 10 phút.">Scan a QR on the same Wi-Fi. The link self-destructs in 10 minutes.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">QR</span><span class="g-tag">Wi-Fi</span><span class="g-tag">10 min</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="07 THÓI QUEN · CÔNG THỨC">07 HABITS · RECIPES</span>
+        <h2 class="garage-title" data-vi="Càng dùng càng hợp với bạn">Gets used to you</h2>
+        <p class="garage-desc" data-vi="Việc hay dùng tự lên vòng tròn. Công thức nhiều bước, thư mục tự động, kệ tạm, xem nhanh bằng Ctrl+Space, hoàn tác.">What you use climbs onto the wheel. Recipes, watched folders, a shelf, Ctrl+Space quick look, undo.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">Recipes</span><span class="g-tag">Shelf</span><span class="g-tag">Ctrl+Space</span><span class="g-tag">Undo</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <article class="garage-cell reveal">
+        <span class="garage-kicker" data-vi="08 AI · TRÊN MÁY BẠN">08 AI · ON YOUR PC</span>
+        <h2 class="garage-title" data-vi="Xoá nền, phụ đề">Background removal, subtitles</h2>
+        <p class="garage-desc" data-vi="AI chạy ngay trên máy. Không gửi gì đi đâu.">AI that runs on your PC. Nothing leaves it.</p>
+        <div class="garage-cell-foot"><div class="garage-tags"><span class="g-tag">PNG</span><span class="g-tag">SRT</span><span class="g-tag">Offline</span></div><span class="garage-arrow" aria-hidden="true">→</span></div>
+      </article>
+      <div class="garage-cell garage-cell--soon">
+        <span class="garage-slot-num">09</span><span class="garage-slot-rule" aria-hidden="true"></span>
+        <p class="garage-slot-text" data-vi="macOS · sắp có">macOS · coming</p>
+      </div>
+    </div>
+
+    <section class="g-band reveal" id="how">
+      <p class="g-kicker" data-vi="CÁCH DÙNG · BA BƯỚC">HOW · THREE STEPS</p>
+      <h2 class="g-title" data-vi="Ba bước, khỏi cần đọc hướng dẫn">Three steps, zero tutorials</h2>
+      <div class="g-three">
+        <article><span class="num">01</span>
+          <h3 data-vi="Bắt đầu kéo">Start dragging</h3>
+          <p data-vi="Một file bất kỳ trong File Explorer hoặc trên desktop. Như mọi ngày.">Any file in File Explorer or on the desktop. Like you always do.</p></article>
+        <article><span class="num">02</span>
+          <h3 data-vi="Giữ Shift">Hold Shift</h3>
+          <p data-vi="Vòng tròn kính hiện ra, chỉ với những việc hợp với file đó. Phím 1–8 chọn nhanh.">A glass wheel appears with only what fits that file. Keys 1–8 if you're in a hurry.</p></article>
+        <article><span class="num">03</span>
+          <h3 data-vi="Thả. Xong.">Drop. Done.</h3>
+          <p data-vi="File mới nằm ngay cạnh file gốc. Không thích? Bấm hoàn tác.">The result lands right next to the original. Changed your mind? Undo.</p></article>
+      </div>
+    </section>
+
+    <section class="g-band reveal" id="private">
+      <p class="g-kicker" data-vi="RIÊNG TƯ · KHÔNG GÌ RỜI KHỎI MÁY BẠN">PRIVATE · NOTHING LEAVES YOUR COMPUTER</p>
+      <p class="lab-intro-lede" data-vi="<span class='lab-intro-key'>Không tài khoản</span>, không theo dõi, <span class='lab-intro-key'>không tải file lên</span>. Chỉ đụng vào file bạn kéo. <span class='lab-intro-key'>Mã nguồn mở</span> để bạn tự kiểm tra."><span class="lab-intro-key">No account</span>, no tracking, <span class="lab-intro-key">no uploads</span>. It only touches the files you drag. <span class="lab-intro-key">Open source</span>, so you can check.</p>
+    </section>
+
+    <section id="film" class="g-band reveal">
+      <p class="g-kicker" data-vi="PHIM · 26 GIÂY">FILM · 26 SECONDS</p>
+      <h2 class="g-title" data-vi="Cách cũ bảy bước, cách mới một lần kéo">Seven steps the old way, one drag the new way</h2>
+      <div class="lab-stage is-plain">
+        <figure class="g-device">
+          <figcaption><i></i><i></i><i></i><span>why.mp4</span></figcaption>
+          <video controls muted loop playsinline preload="none" poster="/media/why-poster.jpg" data-auto>
+            <source src="/media/why.webm" type="video/webm" />
+            <source src="/media/why.mp4" type="video/mp4" />
+          </video>
+        </figure>
+      </div>
+    </section>
+
+    <section id="faq" class="g-band">
+      <p class="g-kicker">FAQ</p>
+      <h2 class="g-title reveal" data-vi="FAQ (không nghiêm túc lắm)">FAQ (not very serious)</h2>
+      <div class="g-faq">
+        <details class="reveal" open><summary data-vi="Rotae có miễn phí không?">Is Rotae free?</summary>
+        <p data-vi="Có, miễn phí 100% và mã nguồn mở (MIT). Không có bản Pro bí mật nào cả.">Yes, 100% free and open source (MIT). There is no secret Pro version.</p></details>
+        <details class="reveal"><summary data-vi="File của tôi có bị tải lên đâu không?">Do my files get uploaded?</summary>
+        <p data-vi="Không. Mọi thứ chạy trên máy bạn. Chỉ những việc ghi rõ như “Gửi sang điện thoại” hay “Dịch” mới dùng mạng, và chỉ khi bạn chọn.">No. Everything runs on your PC. Only actions that say so, like “To phone” or “Translate”, use the network, and only when you pick them.</p></details>
+        <details class="reveal"><summary data-vi="Sao Windows cảnh báo khi cài?">Why does Windows warn me?</summary>
+        <p data-vi="App mới chưa có chứng chỉ ký code trả phí nên SmartScreen chưa quen. Chọn More info → Run anyway. Mã nguồn công khai trên GitHub.">It is a new app without a paid code-signing certificate, so SmartScreen hasn't met it yet. Choose More info → Run anyway. The source is public on GitHub.</p></details>
+        <details class="reveal"><summary data-vi="Video và nhạc không chạy?">Video and audio don't work?</summary>
+        <p data-vi="Chúng cần tiện ích FFmpeg miễn phí: Cài đặt › Tiện ích thêm › Tải về. Một lần là xong.">They need the free FFmpeg add-on: Settings › Add-ons › Download. One time.</p></details>
+        <details class="reveal"><summary data-vi="Có bản cho Mac không?">Is there a Mac version?</summary>
+        <p data-vi="Đang lên kế hoạch. Hiện tại là Windows 10 và 11.">Planned. For now it is Windows 10 and 11.</p></details>
+        <details class="reveal"><summary data-vi="App ở đâu sau khi cài?">Where is the app after installing?</summary>
+        <p data-vi="Nó sống lặng lẽ dưới khay hệ thống (icon ⇄ cạnh đồng hồ). Không cần mở cửa sổ nào, cứ kéo file và giữ Shift.">It lives quietly in the system tray (the ⇄ icon by the clock). No window to keep open; just drag a file and hold Shift.</p></details>
+      </div>
+    </section>
+
+    <section class="g-band reveal" id="install">
+      <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11">INSTALL · WINDOWS 10/11</p>
+      <h2 class="g-title" data-vi="File của bạn đang chờ">Your files are waiting</h2>
+      <div class="desk-only">
+        <div class="g-cmd">
+          <span aria-hidden="true">PS&gt;</span>
+          <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
+          <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
+        </div>
+      </div>
+      <button class="g-btn share-again on-phone-inline" data-vi="Gửi link sang máy tính">Send the link to my PC</button>
+      <div class="g-two">
+        <p><b data-vi="Một dòng trong PowerShell.">One line in PowerShell.</b> <span data-vi="Tải bộ cài từ GitHub Releases, kiểm tra SHA-256 rồi cài lặng lẽ, chỉ cho tài khoản của bạn. Chạy lại để cập nhật.">Downloads the installer from GitHub Releases, checks its SHA-256 and installs it quietly, for your user only. Run it again to update.</span> <a href="/install.ps1" data-vi="Đọc script trước">Read the script first</a></p>
+        <p><b data-vi="Hoặc bộ cài.">Or the installer.</b> <span data-vi="Chưa ký code nên Windows sẽ hỏi trước khi chạy: More info, rồi Run anyway.">It isn't signed yet, so Windows asks before running it: More info, then Run anyway.</span> <a class="dl" href="https://github.com/nhaajtt/rotae/releases/latest" data-vi="Tải .exe">Download .exe</a></p>
+      </div>
+      <p class="g-fine" data-vi="8 MB, một phút cài đặt, không đăng ký, không drama.">8 MB, a minute to install, no signup, no drama.</p>
+    </section>
+
+    <section class="g-band reveal" id="feedback">
+      <p class="g-kicker" data-vi="GÓP Ý">FEEDBACK</p>
+      <h2 class="g-title" data-vi="Gặp lỗi, hay có ý tưởng?">Something wrong, or an idea?</h2>
+      <form class="g-form" id="fb-form">
+        <textarea id="fb-text" maxlength="4000" rows="5" required placeholder="What happened, or what would you like Rotae to do?" data-vi-ph="Chuyện gì đã xảy ra, hoặc bạn muốn Rotae làm được gì?"></textarea>
+        <input id="fb-contact" type="text" maxlength="200" autocomplete="off" placeholder="How to reach you, if you want an answer (optional)" data-vi-ph="Cách liên lạc với bạn, nếu bạn muốn được trả lời (không bắt buộc)" />
+        <div class="g-form-row">
+          <button type="submit" class="g-btn" id="fb-send" data-vi="Gửi">Send</button>
+          <span class="g-fine" id="fb-note" data-vi="Chỉ những gì bạn viết ở đây được gửi đi, kèm số phiên bản.">Only what you write here is sent, with the version number.</span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="g-foot">
+    <p><span data-vi="Làm ra vì chán bởi">Built out of boredom by</span> Nhaajt. <span data-vi="Chỉ đụng vào file bạn kéo, hứa đấy.">Only touches the files you drag, promise.</span> <span data-vi="Thấy hay thì">Enjoying it?</span> <a href="https://github.com/nhaajtt/rotae" target="_blank" rel="noopener">★ <span data-vi="thả sao trên GitHub">Star it on GitHub</span></a>.</p>
+    <p><a href="https://github.com/nhaajtt/rotae">GitHub</a> · <a href="https://github.com/nhaajtt/rotae/releases" data-vi="Các phiên bản">Releases</a> · <a href="https://github.com/nhaajtt/rotae/blob/master/LICENSE">MIT</a></p>
+    <p class="g-kicker">© 2026 Nhaajt · Rotae</p>
+  </footer>
+</div>
+
+<dialog class="jump" id="jump" aria-label="Jump to">
+  <input type="text" id="jumpIn" autocomplete="off" spellcheck="false" placeholder="Jump to…" data-vi-ph="Đi tới…" />
+  <ul id="jumpList" role="listbox"></ul>
+</dialog>
+
+<script src="/main.js" defer></script>
+<script type="module" src="/backdrop.js"></script>
+</body>
+</html>
