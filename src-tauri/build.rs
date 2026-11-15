@@ -22,6 +22,7 @@ const COMMANDS: &[&str] = &[
     "open_with",
     "overlay_hide",
     "pdf_thumbs",
+    "pentest_tools",
     "read_text",
     "rename_files",
     "report_bug",

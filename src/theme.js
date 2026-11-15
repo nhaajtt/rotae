@@ -12,6 +12,7 @@ function apply() {
   root.dataset.accent = current.accent || 'gold';
   const isDark = current.theme === 'dark' || (current.theme === 'system' && dark.matches);
   root.classList.toggle('dark', isDark);
+  root.classList.toggle('solid', !!current.reduce_transparency);
   setLanguage(current.lang || 'system');
 }
 

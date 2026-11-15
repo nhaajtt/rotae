@@ -37,6 +37,7 @@ fn exe(name: &str) -> PathBuf {
 }
 
 /// Keeps console tools from flashing a window.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 fn command(name: &str) -> Command {
@@ -44,6 +45,7 @@ fn command(name: &str) -> Command {
 }
 
 /// A command for any program, without a console window popping up.
+#[allow(unused_mut)]
 pub fn quiet(program: &Path) -> Command {
     let mut c = Command::new(program);
     #[cfg(windows)]
@@ -60,7 +62,7 @@ fn probe(args: &[&str], file: &Path) -> Result<String> {
         .args(args)
         .arg(file)
         .output()
-        .context("Video and audio need the FFmpeg add-on: Settings › Add-ons")?;
+        .with_context(|| super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
@@ -92,8 +94,48 @@ pub fn video_size(file: &Path) -> Option<(u32, u32)> {
 }
 
 /// Ends a program and everything it started (Office, Edge and LibreOffice spawn helpers).
+#[cfg(windows)]
 pub fn kill_tree(pid: u32) {
     let _ = quiet(Path::new("taskkill")).args(["/F", "/T", "/PID", &pid.to_string()]).output();
+}
+
+/// Linux: the program and its descendants, found through /proc parent ids.
+#[cfg(not(windows))]
+pub fn kill_tree(pid: u32) {
+    let mut parents: Vec<(u32, u32)> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir("/proc") {
+        for e in rd.flatten() {
+            let Ok(p) = e.file_name().to_string_lossy().parse::<u32>() else { continue };
+            // stat is "pid (comm) state ppid …"; comm may hold spaces and parentheses
+            let Ok(stat) = std::fs::read_to_string(e.path().join("stat")) else { continue };
+            let Some(after) = stat.rfind(')').map(|i| &stat[i + 1..]) else { continue };
+            if let Some(ppid) = after.split_whitespace().nth(1).and_then(|v| v.parse().ok()) {
+                parents.push((p, ppid));
+            }
+        }
+    }
+    let mut tree = vec![pid];
+    let mut i = 0;
+    while i < tree.len() {
+        let cur = tree[i];
+        tree.extend(parents.iter().filter(|(_, pp)| *pp == cur).map(|(p, _)| *p));
+        i += 1;
+    }
+    if !tree.is_empty() {
+        let _ = Command::new("kill").arg("-9").args(tree.iter().map(|p| p.to_string())).output();
+    }
+}
+
+/// Linux: helper programs started by Rotae, ended with it, with their start time so a process id
+/// reused by another program is never killed.
+#[cfg(not(windows))]
+static ADOPTED: std::sync::Mutex<Vec<(u32, u64)>> = std::sync::Mutex::new(Vec::new());
+
+/// Linux: when the process started (clock ticks since boot), from /proc/<pid>/stat.
+#[cfg(not(windows))]
+fn started(pid: u32) -> Option<u64> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    stat[stat.rfind(')')? + 1..].split_whitespace().nth(19)?.parse().ok()
 }
 
 /// The job our helper programs run in. The handle is never closed: Windows closes it when this
@@ -115,6 +157,12 @@ pub fn end_all() {
     if let Some(&job) = JOB.get().filter(|&&j| j != 0) {
         use windows_sys::Win32::System::JobObjects::TerminateJobObject;
         unsafe { TerminateJobObject(job as _, 1) };
+    }
+    #[cfg(not(windows))]
+    for (pid, at) in std::mem::take(&mut *ADOPTED.lock().unwrap_or_else(|e| e.into_inner())) {
+        if started(pid) == Some(at) {
+            kill_tree(pid);
+        }
     }
 }
 
@@ -159,7 +207,19 @@ pub fn adopt(pid: u32) {
         }
     }
     #[cfg(not(windows))]
-    let _ = pid;
+    {
+        // started while quitting: end it at once, otherwise remember it for end_all
+        if quitting() {
+            kill_tree(pid);
+            return;
+        }
+        let mut list = ADOPTED.lock().unwrap_or_else(|e| e.into_inner());
+        // finished programs drop out, so the list doesn't grow over a long session
+        list.retain(|&(p, at)| started(p) == Some(at));
+        if let Some(at) = started(pid) {
+            list.push((pid, at));
+        }
+    }
 }
 
 /// Stops a program that has gone quiet for `idle` (stuck on a hidden dialog, a damaged file…).
@@ -258,7 +318,7 @@ pub fn ffmpeg_in(dir: Option<&Path>, args: &[String], total: f64, progress: &dyn
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| anyhow!("Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
+        .map_err(|_| anyhow!(super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons")))?;
 
     // ffmpeg reports progress twice a second; silence for minutes means it is stuck
     let dog = Watchdog::new(child.id(), Duration::from_secs(300));

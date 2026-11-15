@@ -1,15 +1,21 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { addView, h, settings, toggle } from './ui.js';
+import { addView, h, LINUX, settings, toggle } from './ui.js';
 
 // First launch (and tray › How to use): Rotae has no window of its own, so this shows
 // where it lives and how to use it, with the few choices worth making up front.
 
-const STEPS = [
-  ['1', 'Start dragging a file', 'In File Explorer or on the desktop.'],
-  ['2', 'Then hold Shift', 'The wheel opens around the file. Keys 1–8 pick a wedge, Esc cancels.'],
-  ['3', 'Drop it on an action', 'The result is saved next to the original, which is never changed.'],
-];
+const STEPS = LINUX
+  ? [
+      ['1', 'Start dragging a file', 'From your file manager or the desktop.'],
+      ['2', 'Touch the glowing strip', 'It waits at the right edge of the screen and opens into the wheel. On X11 you can also just hold Shift while dragging.'],
+      ['3', 'Drop it on an action', 'The result is saved next to the original, which is never changed.'],
+    ]
+  : [
+      ['1', 'Start dragging a file', 'In File Explorer or on the desktop.'],
+      ['2', 'Then hold Shift', 'The wheel opens around the file. Keys 1–8 pick a wedge, Esc cancels.'],
+      ['3', 'Drop it on an action', 'The result is saved next to the original, which is never changed.'],
+    ];
 
 addView({
   id: 'welcome',
@@ -42,12 +48,14 @@ addView({
     );
     setup.append(
       h('div', { class: 'field' }, h('div', { class: 'what' }, 'Language'), lang),
-      toggle('Start with Windows', 'So the wheel is always there when you drag.', auto, (v) => invoke('set_autostart', { on: v })),
+      toggle(LINUX ? 'Start at login' : 'Start with Windows', 'So the wheel is always there when you drag.', auto, (v) => invoke('set_autostart', { on: v })),
     );
     // video and audio need FFmpeg; offer it here so the first video drop just works
     const tools = await invoke('tools_status').catch(() => []);
     const ff = tools.find((t) => t.id === 'ffmpeg');
-    if (ff && !ff.installed) {
+    if (ff && !ff.installed && ff.hint) {
+      setup.append(h('div', { class: 'field' }, h('div', { class: 'what' }, 'Video and audio', h('small', {}, 'Needs FFmpeg from your distribution:'), h('small', { class: 'mono', style: 'user-select:text' }, ff.hint))));
+    } else if (ff && !ff.installed) {
       const btn = h('button', { class: 'btn' }, 'Download');
       btn.onclick = async () => {
         btn.disabled = true;

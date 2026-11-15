@@ -119,7 +119,7 @@ const phone = matchMedia('(max-width: 880px)').matches;
 const page = 'https://rotae.nhaajt.com';
 async function shareLink(btn) {
   const vi = document.documentElement.lang === 'vi';
-  const text = vi ? 'Rotae: kéo file, giữ Shift. Cài trên máy tính Windows:' : 'Rotae: drag a file, hold Shift. Install it on a Windows PC:';
+  const text = vi ? 'Rotae: kéo file, giữ Shift. Cài trên máy tính Windows hoặc Linux:' : 'Rotae: drag a file, hold Shift. Install it on a Windows or Linux computer:';
   try {
     if (navigator.share) return await navigator.share({ title: 'Rotae', text, url: page });
   } catch {
@@ -167,6 +167,7 @@ const PX = 150;
 const BARS = [
   { from: 2026.82, row: 0, cls: 'is-current', en: ['Rotae 1.0', 'Windows · 2026'], vi: ['Rotae 1.0', 'Windows · 2026'] },
   { from: 2026.86, row: 1, cls: '', en: ['One-line install', 'PowerShell'], vi: ['Cài bằng một dòng lệnh', 'PowerShell'] },
+  { from: 2026.87, row: 3, cls: 'is-current', en: ['Rotae for Linux', 'Ubuntu · Kali · Fedora'], vi: ['Rotae cho Linux', 'Ubuntu · Kali · Fedora'] },
   { from: 2027.05, row: 2, cls: 'is-future', en: ['macOS', 'planned'], vi: ['macOS', 'dự kiến'] },
   { from: 2024.76, row: 3, cls: 'is-muted', href: 'https://tauri.app', en: ['Tauri 2', 'the shell'], vi: ['Tauri 2', 'khung app'] },
   { from: 2025.6, row: 4, cls: 'is-muted is-faint', href: 'https://ffmpeg.org', en: ['FFmpeg', 'video and audio add-on'], vi: ['FFmpeg', 'tiện ích video, nhạc'] },

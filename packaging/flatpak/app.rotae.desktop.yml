@@ -1,0 +1,36 @@
+# Flatpak build of the official .deb. Build: flatpak-builder --user --install build app.rotae.desktop.yml
+# The Flatpak sandbox hides the system's programs, so Pentest user mode and the Shift-drag on X11
+# are not available here; the drop strip, right-click entries excepted, works as usual. Prefer the
+# .deb or the AppImage on Kali.
+app-id: app.rotae.desktop
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: rotae
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  # files are converted where they are, next to the original
+  - --filesystem=home
+  # tray icon, "show in folder", phone link on the local network, add-on downloads
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.FileManager1
+  - --share=network
+modules:
+  - name: rotae
+    buildsystem: simple
+    build-commands:
+      - bsdtar -xf rotae.deb data.tar.gz
+      - tar -xzf data.tar.gz
+      - install -Dm755 usr/bin/rotae /app/bin/rotae
+      - cp -r usr/lib /app/ || true
+      - install -Dm644 usr/share/applications/Rotae.desktop /app/share/applications/app.rotae.desktop.desktop
+      - sed -i 's/^Icon=.*/Icon=app.rotae.desktop/' /app/share/applications/app.rotae.desktop.desktop
+      - for s in 32x32 128x128 256x256@2; do f=usr/share/icons/hicolor/$s/apps/rotae.png; [ -f "$f" ] && install -Dm644 "$f" "/app/share/icons/hicolor/${s%@2}/apps/app.rotae.desktop.png"; done; true
+    sources:
+      - type: file
+        url: https://github.com/nhaajtt/rotae/releases/download/v1.1.0/Rotae_1.1.0_amd64.deb
+        sha256: REPLACE_WITH_THE_RELEASE_DIGEST
+        dest-filename: rotae.deb

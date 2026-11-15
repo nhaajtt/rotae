@@ -21,6 +21,7 @@
     "allow-open-link",
     "allow-open-logs",
     "allow-open-with",
+    "allow-pentest-tools",
     "allow-rename-files",
     "allow-report-bug",
     "allow-reveal",

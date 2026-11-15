@@ -87,6 +87,42 @@ No admin rights needed. Windows SmartScreen may warn about a new app: choose **M
 
 Requires Windows 10 or 11 (64-bit). A macOS version is planned.
 
+### Linux
+
+```sh
+curl -fsSL https://rotae.nhaajt.com/install.sh | sh
+```
+
+Picks the package that fits (`.deb` for Ubuntu, Debian and Kali, `.rpm` for Fedora, AppImage
+anywhere else), checks its SHA-256 against the one GitHub publishes, and installs it. Packages are
+also on [Releases](https://github.com/nhaajtt/rotae/releases/latest). x86-64, X11 or Wayland.
+
+- **Drag a file to the glowing strip** at the right edge of the screen: it opens into the wheel.
+  The edge can be changed in Settings.
+- **On X11**, holding Shift while dragging opens the wheel right where you are, as on Windows.
+- Right-click entry for Files (Nautilus), Dolphin, Nemo and Thunar, in Settings › File manager.
+- Video and audio use the system FFmpeg, text recognition uses Tesseract; the `.deb` brings them along.
+
+#### Pentest user mode
+
+Settings › Pentest user mode adds an **Analyze** wedge with the security tools installed on the
+computer (Kali has most of them; `install.sh --pentest` adds the rest on apt systems):
+
+| Group | Tools |
+|---|---|
+| File forensics | ExifTool, ClamAV, binwalk, foremost, ssdeep, rabin2/radare2, readelf, capa, FLOSS, olevba, pdfid, pdf-parser, apktool, jadx |
+| Captures | capinfos, tshark (protocols, conversations, HTTP, cleartext logins, exported files), hcxtools |
+| CTF | Magic decode (base64/32, hex, binary, URL, gzip/zlib, ROT13, JWT, flag finder), hashid, John, zsteg, steghide, pngcheck |
+| Recon | nmap (quick, all ports, vuln scripts), subfinder, dnsx, httpx, nuclei, sslscan, engagement report |
+
+- For authorized testing only: turning it on asks you to confirm that, and the more intrusive tools ask again.
+- Every tool runs in a **bubblewrap sandbox** that sees only the dropped file and an output folder, with no network.
+- **Recon** works on an engagement folder holding a `scope.txt` (hosts, `*.domains`, networks, `!exclusions`).
+  Targets outside it are refused, one run covers at most a /24, and results from nmap, httpx, nuclei and
+  subfinder are collected into `findings.json` and an engagement report (Markdown and HTML).
+- Add your own tools as TOML files in `~/.local/share/rotae/tools.d/` (same format as
+  [`src-tauri/tools/pentest.toml`](src-tauri/tools/pentest.toml)).
+
 ## Build from source
 
 Requirements: [Rust](https://rustup.rs) (stable, MSVC), [Node.js](https://nodejs.org) 20+, Visual Studio Build Tools (C++).
@@ -102,6 +138,15 @@ npm run tauri build             # installer in src-tauri/target/release/bundle/n
 
 Engine tests (need `ffmpeg` on PATH): `cd src-tauri && cargo test --lib`.
 
+On Linux (Debian, Ubuntu, Kali):
+
+```sh
+sudo apt install build-essential curl libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev   libxdo-dev libssl-dev libarchive-tools ffmpeg tesseract-ocr bubblewrap
+npm install
+sh scripts/fetch-pdfium.sh      # puts libpdfium.so in src-tauri/resources/bin
+npm run tauri build -- --bundles deb,rpm,appimage
+```
+
 ## Project layout
 
 ```
@@ -113,6 +158,10 @@ src-tauri/src/
   jobs.rs            job queue
   engines/           image, media (FFmpeg), pdf, office, text, files, security, ai, dev
   watch.rs           watched folders
+  platform.rs        Linux and Windows differences (folders, autostart, display set-up)
+  x11drag.rs         Linux: Shift while dragging opens the wheel (X11)
+  engines/pentest.rs Pentest user mode: tool manifest, bubblewrap sandbox
+  engines/recon.rs   engagement scope, findings, report
   share.rs           Wi-Fi sharing, R2 upload, Claude
 ```
 

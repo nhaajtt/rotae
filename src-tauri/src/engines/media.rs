@@ -394,7 +394,7 @@ fn encode_slideshow(pngs: &[PathBuf], first: &Path, seconds: f64, w: u32, h: u32
 
 /// Speech to subtitles with whisper.cpp (downloaded in Settings). Optionally burnt into the video.
 fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>> {
-    let cli = super::security::tool_path("whisper").context("Speech to text isn't installed yet: Settings › Speech to text")?;
+    let cli = super::security::tool_path("whisper").with_context(|| super::security::missing("whisper", "Speech to text isn't installed yet: Settings › Speech to text"))?;
     let model = super::security::whisper_model().context("the speech model is missing: Settings › Speech to text")?;
     let dur = tools::duration(src);
     let wav = temp_file("wav");
@@ -422,7 +422,7 @@ fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>
     let rel = srt_tmp.file_name().context("no name")?.to_string_lossy().into_owned();
     let out = out_path(src, Some("Subtitled"), "mp4");
     let mut args = s(&["-i", &src.to_string_lossy()]);
-    args.extend(with_vf(codec_args("mp4")?, format!("subtitles={rel}:force_style='FontName=Segoe UI,FontSize=20,Outline=1.2,Shadow=0',{EVEN}")));
+    args.extend(with_vf(codec_args("mp4")?, format!("subtitles={rel}:force_style='FontName={},FontSize=20,Outline=1.2,Shadow=0',{EVEN}", if cfg!(windows) { "Segoe UI" } else { "Sans" })));
     args.push(out.to_string_lossy().into_owned());
     let r = tools::ffmpeg_in(Some(&dir), &args, dur, &|p| progress(0.7 + p * 0.3));
     let _ = std::fs::remove_file(&srt_tmp);

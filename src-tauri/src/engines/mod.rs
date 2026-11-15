@@ -4,11 +4,14 @@ pub mod docx;
 pub mod files;
 pub mod image;
 pub mod imagex;
+pub mod magic;
 pub mod media;
 pub mod office;
 pub mod pdf;
 pub mod pdfwrite;
 pub mod pdfx;
+pub mod pentest;
+pub mod recon;
 pub mod security;
 pub mod text;
 pub mod tools;
@@ -115,6 +118,13 @@ pub enum Action {
     Custom { command: String },
     /// translate | summarize, with the user's Claude API key
     AskClaude { task: String, #[serde(default)] lang: String },
+    /// a tool from the pentest manifest, sandboxed (Pentest user mode)
+    Pentest {
+        tool: String,
+        /// the tool's `confirm` question was answered (checked again in the backend)
+        #[serde(default)]
+        confirmed: bool,
+    },
 }
 
 thread_local! {
@@ -148,6 +158,9 @@ pub fn run(paths: &[PathBuf], action: &Action, progress: Progress) -> Result<Vec
     }
     if let Action::AskClaude { task, lang } = action {
         return crate::share::ask_claude(&paths[0], task, lang).map(|p| vec![p]);
+    }
+    if pentest::handles(action) {
+        return pentest::run(paths, action, progress);
     }
     if let Action::Custom { command } = action {
         return custom(&paths[0], command);
@@ -214,8 +227,14 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
     let dir = src.parent().map(|d| d.to_path_buf()).unwrap_or_default();
     // the names are pasted into a cmd line, sometimes outside quotes: a file called
     // "a & del x.txt" must never become a second command
+    #[cfg(windows)]
     if src.to_string_lossy().contains(['&', '|', '<', '>', '^', '%', '"']) {
         bail!("this file name has characters (& | < > ^ %) that are unsafe in a command line; rename it first");
+    }
+    // sh expands $(…), `…` and \ even inside double quotes
+    #[cfg(not(windows))]
+    if src.to_string_lossy().contains(['&', '|', '<', '>', ';', '$', '`', '\\', '"', '\'', '\n', '\r']) {
+        bail!("this file name has characters ($ ` \\ ; & | < > or quotes) that are unsafe in a command line; rename it first");
     }
     let q = |s: &str| format!("\"{s}\"");
     let line = command
@@ -231,7 +250,7 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
         tools::output_within_unowned(tools::quiet(std::path::Path::new("cmd")).arg("/D").arg("/C").raw_arg(&line).current_dir(&dir), std::time::Duration::from_secs(3600))?
     };
     #[cfg(not(windows))]
-    let o = std::process::Command::new("sh").arg("-c").arg(&line).current_dir(&dir).output()?;
+    let o = tools::output_within_unowned(std::process::Command::new("sh").arg("-c").arg(&line).current_dir(&dir), std::time::Duration::from_secs(3600))?;
     if !o.status.success() {
         let err = String::from_utf8_lossy(&o.stderr);
         bail!("{}", err.lines().last().unwrap_or("the command failed"));

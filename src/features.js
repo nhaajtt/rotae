@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { addView, h, name, secretField, settings, settingsSections, shared, toggle } from './ui.js';
+import { addView, h, LINUX, name, secretField, settings, settingsSections, shared, toggle } from './ui.js';
 
 // Settings cards for optional features. Anything that talks to the internet is off or empty
 // until the user fills it in here.
@@ -13,7 +13,7 @@ settingsSections.push(async (s) => {
     upx: ['UPX', 'Unpacks programs compressed with UPX'],
     ai: ['AI images', 'Background removal and face blurring, on this PC (≈180 MB)'],
     upscale: ['Upscaling', 'Real-ESRGAN, sharp 2× and 4× enlargements; needs a Vulkan graphics card (≈45 MB)'],
-    ffmpeg: ['FFmpeg', 'Needed for every video and audio action (official Windows build, ≈90 MB)'],
+    ffmpeg: ['FFmpeg', LINUX ? 'Needed for every video and audio action' : 'Needed for every video and audio action (official Windows build, ≈90 MB)'],
     yara: ['YARA-X', 'Scan programs with your own YARA rules (VirusTotal’s YARA-X)'],
     qpdf: ['qpdf', 'PDF passwords: protect and unlock'],
     whisper: ['Speech to text', 'Subtitles from speech, offline (whisper.cpp + 150 MB model)'],
@@ -34,13 +34,24 @@ settingsSections.push(async (s) => {
         btn.title = String(e);
       }
     };
+    if (t.hint) {
+      // Linux: comes from the distribution (or pipx/cargo), not a download
+      card.append(
+        h('div', { class: 'field' },
+          h('div', { class: 'what' }, label, h('small', {}, hint, '.'), h('small', { class: 'mono', style: 'user-select:text' }, t.hint)),
+          h('span', { class: `tag ${t.installed ? 'ok' : ''}` }, t.installed ? 'ready' : 'missing'),
+        ),
+      );
+      continue;
+    }
     card.append(h('div', { class: 'field' }, h('div', { class: 'what' }, label, h('small', {}, hint, '. ', 'Downloaded from its official GitHub release.')), btn));
   }
   const rules = h('input', { type: 'text', value: s.yara_rules || '', placeholder: 'Folder with .yar rules, e.g. C:\\Tools\\rules', style: 'flex:1' });
   rules.onchange = () => settings.set({ yara_rules: rules.value.trim().replace(/^"|"$/g, '') }).catch((e) => invoke('ui_log', { msg: `setting failed: ${e}` }));
   card.append(h('label', { class: 'field' }, h('div', { class: 'what' }, 'YARA rules', h('small', {}, 'Used by YARA scan on programs.')), rules));
   const sandbox = await invoke('sandbox_ok');
-  card.append(
+  // Windows Sandbox only exists on Windows Pro and Enterprise
+  if (!LINUX) card.append(
     h('div', { class: 'field' }, h('div', { class: 'what' }, 'Windows Sandbox', h('small', {}, sandbox ? 'Available: programs can be opened in a throwaway sandbox.' : 'Not available on this PC (needs Windows Pro or Enterprise with the feature turned on).')), h('span', { class: `tag ${sandbox ? 'ok' : ''}` }, sandbox ? 'ready' : 'off')),
   );
   return card;
@@ -57,9 +68,14 @@ settingsSections.push(async (s) => {
 });
 
 settingsSections.push(async () => {
-  const card = h('div', { class: 'card glass' }, h('div', { class: 'label', style: 'padding-bottom:6px' }, 'Explorer'));
+  const card = h('div', { class: 'card glass' }, h('div', { class: 'label', style: 'padding-bottom:6px' }, LINUX ? 'File manager' : 'Explorer'));
   card.append(
-    toggle('Right-click menu', 'Adds "Rotae…" to Explorer’s menu (under "Show more options" on Windows 11).', await invoke('context_menu_on'), (on) => invoke('context_menu', { enable: on })),
+    toggle(
+      'Right-click menu',
+      LINUX ? 'Adds "Rotae…" to the right-click menu of Files (Nautilus), Dolphin, Nemo and Thunar.' : 'Adds "Rotae…" to Explorer’s menu (under "Show more options" on Windows 11).',
+      await invoke('context_menu_on'),
+      (on) => invoke('context_menu', { enable: on }),
+    ),
   );
   return card;
 });

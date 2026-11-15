@@ -1,0 +1,27 @@
+# Maintainer: Nhaajt
+# Repackages the official .deb from GitHub Releases. Update pkgver and sha256sums for each release
+# (sha256sums: the digest GitHub shows next to the .deb asset).
+pkgname=rotae-bin
+pkgver=1.1.0
+pkgrel=1
+pkgdesc="Drag any file to convert, compress, edit, check and share it"
+arch=('x86_64')
+url="https://rotae.nhaajt.com"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libarchive' 'xdg-utils' 'fontconfig')
+optdepends=('ffmpeg: video and audio actions'
+            'tesseract: copy text from pictures'
+            'tesseract-data-vie: Vietnamese text recognition'
+            'libreoffice-fresh: Word, Excel and PowerPoint to PDF'
+            'bubblewrap: sandbox for Pentest user mode'
+            'chromium: text and Markdown to PDF'
+            'xclip: copying on X11'
+            'wl-clipboard: copying on Wayland')
+provides=('rotae')
+conflicts=('rotae')
+source=("https://github.com/nhaajtt/rotae/releases/download/v${pkgver}/Rotae_${pkgver}_amd64.deb")
+sha256sums=('SKIP')
+
+package() {
+  bsdtar -xf data.tar.* -C "$pkgdir"
+}

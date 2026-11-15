@@ -87,6 +87,9 @@ fn convert(src: &Path, out: &Path, to: &str) -> Result<()> {
 fn libreoffice() -> Option<&'static Path> {
     static P: OnceLock<Option<PathBuf>> = OnceLock::new();
     P.get_or_init(|| {
+        #[cfg(not(windows))]
+        return ["soffice", "libreoffice"].iter().find_map(|n| crate::platform::which(n));
+        #[cfg(windows)]
         ["ProgramFiles", "ProgramFiles(x86)"]
             .iter()
             .filter_map(std::env::var_os)

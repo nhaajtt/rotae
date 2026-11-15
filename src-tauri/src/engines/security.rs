@@ -70,7 +70,7 @@ fn head(p: &Path, n: usize) -> Vec<u8> {
 
 // --- Real file type -------------------------------------------------------------------------
 
-const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin"];
+const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin", "o", "ko", "out", "run", "appimage", "dylib"];
 const SCRIPT_EXT: &[&str] = &["bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "hta", "lnk", "msi", "sh"];
 
 /// What the content really is: (extension, description).
@@ -81,6 +81,13 @@ pub fn sniff(p: &Path) -> Option<(String, String)> {
 pub fn sniff_bytes(h: &[u8]) -> Option<(String, String)> {
     if h.starts_with(b"MZ") {
         return Some(("exe".into(), "Windows program".into()));
+    }
+    if h.starts_with(b"\x7fELF") {
+        return Some(("elf".into(), "Linux program".into()));
+    }
+    // Mach-O 32/64-bit in both byte orders, and universal binaries
+    if [[0xFE, 0xED, 0xFA, 0xCE], [0xFE, 0xED, 0xFA, 0xCF], [0xCE, 0xFA, 0xED, 0xFE], [0xCF, 0xFA, 0xED, 0xFE]].iter().any(|m| h.starts_with(m)) {
+        return Some(("macho".into(), "macOS program".into()));
     }
     let t = infer::get(h)?;
     Some((t.extension().to_string(), t.mime_type().to_string()))
@@ -101,9 +108,10 @@ pub fn disguise(p: &Path) -> Option<String> {
     if n.contains('\u{202e}') {
         return Some(format!("{}: name uses a hidden right-to-left trick", name(p)));
     }
-    let (real, _) = sniff(p)?;
-    if real == "exe" && !PROGRAM_EXT.contains(&e.as_str()) {
-        return Some(format!("{}: named .{e} but is a Windows program", name(p)));
+    let (real, what) = sniff(p)?;
+    // Linux and macOS programs normally have no extension at all; only a misleading one counts
+    if ["exe", "elf", "macho"].contains(&real.as_str()) && !e.is_empty() && !PROGRAM_EXT.contains(&e.as_str()) {
+        return Some(format!("{}: named .{e} but is a {what}", name(p)));
     }
     None
 }
@@ -245,6 +253,7 @@ pub fn signature(_: &Path) -> String {
     "signature check is only available on Windows".into()
 }
 
+#[cfg(windows)]
 trait WideZ {
     fn encode_wide_z(&self) -> Vec<u16>;
 }
@@ -487,9 +496,26 @@ fn locks(p: &Path) -> Result<String> {
     Ok(if names.is_empty() { format!("{}: no program is using it", name(p)) } else { format!("{} is used by: {}", name(p), names.join(", ")) })
 }
 
+/// Linux: every process holding the file open, from /proc (no extra tools needed).
 #[cfg(not(windows))]
-fn locks(_: &Path) -> Result<String> {
-    bail!("only available on Windows")
+fn locks(p: &Path) -> Result<String> {
+    let target = std::fs::canonicalize(p)?;
+    let mut names = Vec::new();
+    for e in std::fs::read_dir("/proc")?.flatten() {
+        let pid = e.file_name().to_string_lossy().into_owned();
+        if !pid.bytes().all(|b| b.is_ascii_digit()) {
+            continue;
+        }
+        // other users' processes can't be read without root; they are skipped
+        let Ok(fds) = std::fs::read_dir(e.path().join("fd")) else { continue };
+        if fds.flatten().any(|fd| std::fs::read_link(fd.path()).is_ok_and(|l| l == target)) {
+            let comm = std::fs::read_to_string(e.path().join("comm")).unwrap_or_default();
+            names.push(format!("{} (PID {pid})", comm.trim()));
+        }
+    }
+    names.sort();
+    names.dedup();
+    Ok(if names.is_empty() { format!("{}: no program of yours is using it", name(p)) } else { format!("{} is used by: {}", name(p), names.join(", ")) })
 }
 
 // --- VirusTotal: only the SHA-256 leaves this computer ------------------------------------
@@ -542,6 +568,12 @@ pub fn curl_secret(cmd: &mut std::process::Command, config: &str) -> Result<std:
     Ok(child.wait_with_output()?)
 }
 
+#[cfg(not(windows))]
+pub fn curl() -> PathBuf {
+    crate::platform::which("curl").unwrap_or_else(|| PathBuf::from("curl"))
+}
+
+#[cfg(windows)]
 pub fn curl() -> PathBuf {
     let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
     Path::new(&root).join("System32").join("curl.exe")
@@ -552,6 +584,8 @@ pub fn open_url(url: &str) -> Result<()> {
     std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", url]).spawn()?;
     #[cfg(target_os = "macos")]
     std::process::Command::new("open").arg(url).spawn()?;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    crate::platform::xdg_open(url)?;
     Ok(())
 }
 
@@ -588,6 +622,60 @@ fn tool_extras(id: &str) -> &'static [(&'static str, &'static str, u64)] {
     }
 }
 
+/// Linux: add-ons that come from the distribution or another installer instead of a download.
+#[cfg(not(windows))]
+pub fn linux_hint(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "ffmpeg" => "sudo apt install ffmpeg",
+        "capa" => "pipx install flare-capa",
+        "floss" => "pipx install flare-floss",
+        "upx" => "sudo apt install upx-ucl",
+        "qpdf" => "sudo apt install qpdf",
+        "yara" => "cargo install yara-x-cli",
+        // the model is still downloaded here once whisper-cli is on PATH
+        "whisper" => "build whisper.cpp from github.com/ggml-org/whisper.cpp and put whisper-cli on PATH",
+        _ => return None,
+    })
+}
+
+/// Linux builds of the add-ons that are downloaded (pinned below).
+#[cfg(not(windows))]
+fn linux_source(id: &str) -> Option<&'static str> {
+    match id {
+        "upscale" => Some("https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip"),
+        "ai" => Some("https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz"),
+        _ => None,
+    }
+}
+
+/// The program (or library) file an add-on provides on this system.
+fn exe_name(id: &str) -> Option<&'static str> {
+    let win = TOOLS.iter().find(|t| t.0 == id)?.3;
+    if cfg!(windows) {
+        return Some(win);
+    }
+    Some(match id {
+        "ai" => "libonnxruntime.so.1.22.0",
+        _ => win.strip_suffix(".exe").unwrap_or(win),
+    })
+}
+
+/// "X isn't installed" in the words that fit this system: on Windows the add-on download, on
+/// Linux the command that installs it.
+pub fn missing(id: &str, windows: &str) -> String {
+    #[cfg(not(windows))]
+    if let Some(hint) = linux_hint(id) {
+        let name = match id {
+            "ffmpeg" => "FFmpeg",
+            "whisper" => "whisper.cpp",
+            other => other,
+        };
+        return format!("{name} isn't installed: {hint}");
+    }
+    let _ = id;
+    windows.to_string()
+}
+
 /// A file that came with a tool (model, library), once installed.
 pub fn tool_file(id: &str, name: &str) -> Option<PathBuf> {
     Some(tools_dir().join(id).join(name)).filter(|p| p.is_file())
@@ -598,6 +686,18 @@ const WHISPER_MODEL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolv
 
 /// SHA-256 of the files from pinned downloads (anything else is refused and deleted).
 /// Tools that follow GitHub's latest release are checked against the digest GitHub publishes.
+#[cfg(not(windows))]
+const PINNED: &[(&str, &str, &str)] = &[
+    ("ai", "libonnxruntime.so.1.22.0", "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"),
+    ("ai", "isnet-general-use.onnx", "60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a"),
+    ("ai", "version-RFB-320.onnx", "34cd7e60aeff28744c657de7a3dc64e872d506741de66987f3426f2b79f88017"),
+    ("upscale", "realesrgan-ncnn-vulkan", "22c2296a39b40cc43ac92615c827ab6d4b60b7142e8cee59f718e3f8e2cdbda9"),
+    ("upscale", "realesrgan-x4plus.bin", "713ee713b0353afaa27976f0563a64a5043bd70b9bd8936c2e26e25ebcdbcddf"),
+    ("upscale", "realesrgan-x4plus.param", "35330ececcea33b6c397a72548e788d5d53becee4734c50b7fada36e89f10a86"),
+    ("whisper", "ggml-base.bin", "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"),
+];
+
+#[cfg(windows)]
 const PINNED: &[(&str, &str, &str)] = &[
     ("ai", "onnxruntime.dll", "579b636403983254346a5c1d80bd28f1519cd1e284cd204f8d4ff41f8d711559"),
     ("ai", "isnet-general-use.onnx", "60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a"),
@@ -613,12 +713,12 @@ pub fn whisper_model() -> Option<PathBuf> {
 }
 
 pub fn tools_dir() -> PathBuf {
-    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("Rotae").join("tools")
+    crate::platform::data_dir().join("tools")
 }
 
 /// Path of an installed tool: our tools folder first, then PATH.
 pub fn tool_path(id: &str) -> Option<PathBuf> {
-    let exe = TOOLS.iter().find(|t| t.0 == id)?.3;
+    let exe = exe_name(id)?;
     let dir = tools_dir().join(id);
     if let Some(p) = find_file(&dir, exe, 3) {
         return Some(p);
@@ -661,7 +761,18 @@ pub fn install_tool(id: &str) -> Result<PathBuf> {
 }
 
 fn install_tool_once(id: &str) -> Result<PathBuf> {
+    #[allow(unused_variables)]
     let (_, source, want, _) = *TOOLS.iter().find(|t| t.0 == id).context("unknown tool")?;
+    #[cfg(not(windows))]
+    if id == "whisper" {
+        return install_whisper_model();
+    }
+    #[cfg(not(windows))]
+    if let Some(hint) = linux_hint(id) {
+        bail!("{}", missing(id, hint));
+    }
+    #[cfg(not(windows))]
+    let (source, want) = (linux_source(id).context("unknown tool")?, "");
     let mut digest = None;
     let url = if source.starts_with("https://") {
         source.to_string()
@@ -704,6 +815,12 @@ fn install_tool_once(id: &str) -> Result<PathBuf> {
                 bail!("{name} didn't match its known checksum, so it wasn't installed");
             }
         }
+        // zips don't keep the executable bit
+        #[cfg(not(windows))]
+        if let Some(exe) = exe_name(id).and_then(|n| find_file(&new, n, 4)) {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755))?;
+        }
         Ok(())
     })();
     if let Err(e) = r {
@@ -732,6 +849,24 @@ fn install_tool_once(id: &str) -> Result<PathBuf> {
     tool_path(id).context("the download didn't contain the program")
 }
 
+/// Linux: whisper-cli comes from the user's own build; only the speech model is downloaded.
+#[cfg(not(windows))]
+fn install_whisper_model() -> Result<PathBuf> {
+    let cli = tool_path("whisper").with_context(|| missing("whisper", ""))?;
+    let dir = tools_dir().join("whisper");
+    std::fs::create_dir_all(&dir)?;
+    let model = dir.join("ggml-base.bin");
+    let tmp = dir.join("ggml-base.bin.part");
+    download(WHISPER_MODEL, &tmp, 10_000_000)?;
+    let want = PINNED.iter().find(|p| p.1 == "ggml-base.bin").map(|p| p.2).unwrap_or_default();
+    if super::files::sha256(&tmp)? != want {
+        let _ = std::fs::remove_file(&tmp);
+        bail!("ggml-base.bin didn't match its known checksum, so it wasn't installed");
+    }
+    std::fs::rename(&tmp, &model)?;
+    Ok(cli)
+}
+
 fn download(url: &str, to: &Path, min_size: u64) -> Result<()> {
     let mut child = super::tools::quiet(&curl())
         .args(["-sfL", "--proto", "=https", "--proto-redir", "=https", "--retry", "2", "--max-time", "1800", "-o"])
@@ -748,7 +883,7 @@ fn download(url: &str, to: &Path, min_size: u64) -> Result<()> {
 }
 
 fn run_tool(src: &Path, tool: &str) -> Result<Vec<PathBuf>> {
-    let exe = tool_path(tool).with_context(|| format!("{tool} isn't installed yet: Settings › Analysis tools"))?;
+    let exe = tool_path(tool).with_context(|| missing(tool, &format!("{tool} isn't installed yet: Settings › Analysis tools")))?;
     let mut cmd = super::tools::quiet(&exe);
     match tool {
         "upx" => {
@@ -796,11 +931,26 @@ fn run_tool(src: &Path, tool: &str) -> Result<Vec<PathBuf>> {
 pub struct ToolInfo {
     id: &'static str,
     installed: bool,
+    /// how to install it instead of a download (Linux distribution packages)
+    hint: Option<&'static str>,
 }
 
 #[tauri::command]
 pub async fn tools_status() -> Vec<ToolInfo> {
-    TOOLS.iter().map(|t| ToolInfo { id: t.0, installed: tool_path(t.0).is_some() && tool_extras(t.0).iter().all(|(_, n, _)| tool_file(t.0, n).is_some()) }).collect()
+    TOOLS
+        .iter()
+        .map(|t| {
+            #[cfg(not(windows))]
+            let hint = linux_hint(t.0);
+            #[cfg(windows)]
+            let hint = None;
+            // Linux whisper: the program is the user's, the model is ours; once the program is
+            // there, the model is a normal download
+            #[cfg(not(windows))]
+            let hint = hint.filter(|_| !(t.0 == "whisper" && tool_path("whisper").is_some()));
+            ToolInfo { id: t.0, installed: tool_path(t.0).is_some() && tool_extras(t.0).iter().all(|(_, n, _)| tool_file(t.0, n).is_some()), hint }
+        })
+        .collect()
 }
 
 #[tauri::command]

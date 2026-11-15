@@ -263,10 +263,9 @@ fn pages(doc: &PdfDocument, src: &Path, order: &[u32], rotate: &[u32]) -> Result
     Ok(vec![out])
 }
 
-/// A Windows font that covers Vietnamese and most scripts, embedded in the PDF.
+/// A system font that covers Vietnamese and most scripts, embedded in the PDF.
 fn unicode_font(doc: &mut PdfDocument) -> Result<PdfFontToken> {
-    let fonts = std::env::var_os("WINDIR").map(|w| Path::new(&w).join("Fonts"));
-    if let Some(f) = fonts.and_then(|d| ["arial.ttf", "segoeui.ttf"].iter().map(|n| d.join(n)).find(|p| p.is_file())) {
+    if let Some(f) = crate::platform::system_font(false) {
         if let Ok(t) = doc.fonts_mut().load_true_type_from_file(&f, true) {
             return Ok(t);
         }
@@ -277,7 +276,7 @@ fn unicode_font(doc: &mut PdfDocument) -> Result<PdfFontToken> {
 // --- Passwords: qpdf (downloaded in Settings › Add-ons) --------------------------------------
 
 fn qpdf() -> Result<PathBuf> {
-    security::tool_path("qpdf").context("Passwords need the qpdf add-on: Settings › Add-ons")
+    security::tool_path("qpdf").with_context(|| security::missing("qpdf", "Passwords need the qpdf add-on: Settings › Add-ons"))
 }
 
 fn protect(src: &Path, password: &str) -> Result<PathBuf> {

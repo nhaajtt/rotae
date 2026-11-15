@@ -59,3 +59,25 @@ pub fn set(text: &str) -> Result<()> {
     }
     Ok(())
 }
+
+/// Wayland: wl-copy; X11: xclip or xsel. They keep serving the text after this returns.
+#[cfg(all(unix, not(target_os = "macos")))]
+pub fn set(text: &str) -> Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let wl: (&str, &[&str]) = ("wl-copy", &[]);
+    let xclip: (&str, &[&str]) = ("xclip", &["-selection", "clipboard"]);
+    let xsel: (&str, &[&str]) = ("xsel", &["--clipboard", "--input"]);
+    let order = if std::env::var_os("WAYLAND_DISPLAY").is_some() { [wl, xclip, xsel] } else { [xclip, xsel, wl] };
+    for (prog, args) in order {
+        let Ok(mut child) = Command::new(prog).args(args).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() else { continue };
+        if let Some(mut input) = child.stdin.take() {
+            // a helper that can't run here (xclip without an X display) closes its input early
+            let _ = input.write_all(text.as_bytes());
+        }
+        if child.wait()?.success() {
+            return Ok(());
+        }
+    }
+    bail!("copying needs wl-clipboard or xclip: sudo apt install wl-clipboard xclip")
+}

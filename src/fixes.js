@@ -14,12 +14,19 @@ const addon = (id, why) => ({
 });
 
 const RULES = [
+  // Linux: a program from the distribution (the message ends with the command that installs it)
+  [/isn't installed: (.+)$/, (m) => ({ why: 'A program this action needs isn’t installed on this computer.', how: `Install it, then try again: ${m[1]}` })],
+  [/asks for your confirmation first/i, () => ({ why: 'This tool asks you to confirm you are authorized before it runs.', how: 'Run it from the wheel or the Actions list and answer the question.' })],
+  [/installed where the sandbox would see your own files/i, () => ({ why: 'The tool is installed inside your home folder in a way the sandbox can’t use without showing it your files.', how: 'Install it with apt, or with pipx (which keeps it in its own folder).' })],
   [/qpdf add-on/i, () => addon('qpdf', 'Setting or removing a PDF password needs the qpdf add-on, which isn’t installed yet.')],
   [/FFmpeg add-on|ffmpeg not found|ffprobe/i, () => addon('ffmpeg', 'Video and audio actions need the FFmpeg add-on, which isn’t installed yet.')],
   [/Speech to text isn't installed|speech model/i, () => addon('whisper', 'Subtitles from speech need the Speech to text add-on.')],
   [/AI add-on/i, () => addon('ai', 'Background removal and face blurring need the AI images add-on.')],
   [/Upscaling isn't installed/i, () => addon('upscale', 'Upscaling needs the Upscaling add-on.')],
   [/^(capa|floss|upx|yara) isn't installed/i, (m) => addon(m[1].toLowerCase(), `This action needs the ${ADDONS[m[1].toLowerCase()]} add-on.`)],
+  [/Pentest user mode is off/i, () => ({ why: 'Pentest tools only run while Pentest user mode is on.', how: 'Turn it on in Settings › Pentest user mode.', action: { kind: 'settings', label: 'Open Settings' } })],
+  [/needs bubblewrap|sandbox couldn't start/i, () => ({ why: 'Pentest tools run in a bubblewrap sandbox, so a hostile file can’t reach the rest of your computer. The sandbox isn’t available.', how: 'Install it with: sudo apt install bubblewrap' })],
+  [/no wordlist found/i, () => ({ why: 'Cracking needs a wordlist, and none was found.', how: 'On Kali: sudo gunzip /usr/share/wordlists/rockyou.txt.gz' })],
   [/YARA rules folder/i, () => ({ why: 'A YARA scan needs a folder of .yar rules.', how: 'Pick your rules folder in Settings › Add-ons › YARA rules.', action: { kind: 'settings', label: 'Open Settings' } })],
   [/Office documents need/i, () => ({ why: 'Converting Word, Excel or PowerPoint needs Microsoft Office or the free LibreOffice, and neither is installed.', how: 'Install LibreOffice (free), then try again.', action: { kind: 'url', url: 'https://www.libreoffice.org/download/download-libreoffice/', label: 'Get LibreOffice' } })],
   [/Edge is needed/i, () => ({ why: 'Turning text into PDF uses Microsoft Edge, which wasn’t found.', how: 'Install or repair Microsoft Edge, then try again.', action: { kind: 'url', url: 'https://www.microsoft.com/edge', label: 'Get Edge' } })],

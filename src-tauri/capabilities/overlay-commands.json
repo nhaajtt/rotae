@@ -12,6 +12,7 @@
     "allow-open-hub",
     "allow-open-with",
     "allow-overlay-hide",
+    "allow-pentest-tools",
     "allow-run-action",
     "allow-sandbox-ok",
     "allow-shelf-add",

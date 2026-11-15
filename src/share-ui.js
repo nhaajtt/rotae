@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { addView, h, name, secretField, settings, settingsSections, shared } from './ui.js';
+import { addView, h, LINUX, name, secretField, settings, settingsSections, shared } from './ui.js';
 
 // "To phone" and "Upload link": opened from the wheel or the Actions list with the files.
 
@@ -74,7 +74,7 @@ settingsSections.push(async (s) => {
     'div',
     { class: 'card glass' },
     h('div', { class: 'label', style: 'padding-bottom:6px' }, 'Claude and Cloudflare R2'),
-    h('p', { class: 'muted', style: 'margin-top:0' }, 'Keys are stored encrypted for your Windows account. Files are sent only when you pick Translate, Summarize or Upload link.'),
+    h('p', { class: 'muted', style: 'margin-top:0' }, LINUX ? 'Keys are kept in your desktop keyring when there is one, otherwise in a settings file only you can read. Files are sent only when you pick Translate, Summarize or Upload link.' : 'Keys are stored encrypted for your Windows account. Files are sent only when you pick Translate, Summarize or Upload link.'),
     field('anthropic_key', 'Claude API key', 'For Translate and Summarize on text files.', 'password', 'sk-ant-…'),
     field('r2_account', 'R2 account ID', null),
     field('r2_bucket', 'R2 bucket', null),

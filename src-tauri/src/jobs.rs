@@ -269,6 +269,8 @@ pub async fn reveal(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     std::process::Command::new("open").arg("-R").arg(&p).spawn().map_err(|e| e.to_string())?;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    crate::platform::reveal(&p).map_err(|e| e.to_string())?;
     Ok(())
 }
 

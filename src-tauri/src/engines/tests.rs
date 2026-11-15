@@ -6,6 +6,22 @@ use std::{
     process::Command,
 };
 
+/// A real program to test with: Notepad on Windows, ls on Linux.
+fn sample_program() -> PathBuf {
+    PathBuf::from(if cfg!(windows) { r"C:\Windows\System32\notepad.exe" } else { "/bin/ls" })
+}
+
+/// Zips a folder's `word` subfolder into a .docx with bsdtar (System32 on Windows, libarchive-tools on Linux).
+fn zip_docx(docx: &Path, src: &Path) -> bool {
+    let tar = if cfg!(windows) { r"C:\Windows\System32\tar.exe" } else { "bsdtar" };
+    Command::new(tar).args(["-a", "-c", "-f"]).arg(docx).arg("-C").arg(src).arg("word").status().unwrap().success()
+}
+
+/// Text to PDF needs a Chromium-based browser; Linux machines without one skip that step.
+fn pdf_printer() -> bool {
+    cfg!(windows) || ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().any(|n| crate::platform::which(n).is_some())
+}
+
 fn workdir(name: &str) -> PathBuf {
     let d = std::env::temp_dir().join("rotae-tests").join(name);
     let _ = std::fs::remove_dir_all(&d);
@@ -118,9 +134,13 @@ fn text_and_files() {
     let json = d.join("Data.json");
     std::fs::write(&json, r#"[{"a":1,"b":"x"},{"a":2,"c":null}]"#).unwrap();
 
-    check(std::slice::from_ref(&txt), conv("pdf"));
+    if pdf_printer() {
+        check(std::slice::from_ref(&txt), conv("pdf"));
+    }
     check(std::slice::from_ref(&md), conv("html"));
-    check(&[md], conv("pdf"));
+    if pdf_printer() {
+        check(&[md], conv("pdf"));
+    }
     let j = check(&[csv], conv("json"));
     assert!(std::fs::read_to_string(&j[0]).unwrap().contains("a, \\\"quoted\\\" note"));
     check(std::slice::from_ref(&json), conv("csv"));
@@ -132,10 +152,12 @@ fn text_and_files() {
     assert!(out[0].join("Notes.txt").is_file());
 
     let exe = d.join("notepad.exe");
-    std::fs::copy(r"C:\Windows\System32\notepad.exe", &exe).unwrap();
-    let info = check(std::slice::from_ref(&exe), Action::PeInfo);
-    let report = std::fs::read_to_string(&info[0]).unwrap();
-    assert!(report.contains("x64") && report.contains(".dll"), "{report}");
+    std::fs::copy(sample_program(), &exe).unwrap();
+    if cfg!(windows) {
+        let info = check(std::slice::from_ref(&exe), Action::PeInfo);
+        let report = std::fs::read_to_string(&info[0]).unwrap();
+        assert!(report.contains("x64") && report.contains(".dll"), "{report}");
+    }
     check(&[exe], Action::Strings);
 }
 
@@ -150,10 +172,10 @@ fn installed_apps() {
 fn security_and_dev() {
     let d = workdir("security");
     let exe = d.join("invoice.pdf.exe");
-    std::fs::copy(r"C:\Windows\System32\notepad.exe", &exe).unwrap();
+    std::fs::copy(sample_program(), &exe).unwrap();
     assert!(super::security::disguise(&exe).is_some());
     let fake = d.join("photo.jpg");
-    std::fs::copy(r"C:\Windows\System32\notepad.exe", &fake).unwrap();
+    std::fs::copy(sample_program(), &fake).unwrap();
     assert!(super::security::disguise(&fake).unwrap().contains("program"));
     let txt = d.join("plain.txt");
     std::fs::write(&txt, "hello").unwrap();
@@ -161,8 +183,11 @@ fn security_and_dev() {
 
     let report = check(std::slice::from_ref(&exe), Action::Hashes { algo: "all".into() });
     let r = std::fs::read_to_string(&report[0]).unwrap();
-    assert!(r.contains("imphash") && r.contains("SHA-512"), "{r}");
-    assert!(super::security::signature(Path::new(r"C:\Windows\explorer.exe")).starts_with("signed"));
+    assert!(r.contains("SHA-512"), "{r}");
+    if cfg!(windows) {
+        assert!(r.contains("imphash"), "{r}");
+        assert!(super::security::signature(Path::new(r"C:\Windows\explorer.exe")).starts_with("signed"));
+    }
     run(std::slice::from_ref(&txt), &Action::Locks, &|_| {}).unwrap();
 
     let enc = check(std::slice::from_ref(&txt), Action::Encrypt { password: "s3cret-pass!".into() });
@@ -290,7 +315,7 @@ fn recipes() {
     assert_eq!(std::fs::read_dir(&d).unwrap().count(), 2, "{out:?}");
     let txt = d.join("note.txt");
     std::fs::write(&txt, "x").unwrap();
-    let made = check(&[txt], Action::Custom { command: "copy {file} \"{stem} copy.{ext}\" >nul && echo ok".into() });
+    let made = check(&[txt], Action::Custom { command: if cfg!(windows) { "copy {file} \"{stem} copy.{ext}\" >nul && echo ok" } else { "cp {file} \"{stem} copy.{ext}\" && echo ok" }.into() });
     assert!(made[0].ends_with("note copy.txt"), "{made:?}");
 }
 
@@ -307,7 +332,7 @@ fn docx_to_markdown() {
 <w:tr><w:tc><w:p><w:r><w:t>1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
 </w:body></w:document>"#).unwrap();
     let docx = d.join("Report.docx");
-    let ok = Command::new(r"C:\Windows\System32\tar.exe").args(["-a", "-c", "-f"]).arg(&docx).arg("-C").arg(d.join("src")).arg("word").status().unwrap().success();
+    let ok = zip_docx(&docx, &d.join("src"));
     assert!(ok);
     let md = check(&[docx], conv("md"));
     let t = std::fs::read_to_string(&md[0]).unwrap();
@@ -324,7 +349,7 @@ fn docx_keeps_literal_marks_and_ignores_tab_stops() {
 <w:p><w:r><w:t>left</w:t><w:tab/><w:t>right</w:t></w:r></w:p>
 </w:body></w:document>"#).unwrap();
     let docx = d.join("Marks.docx");
-    assert!(Command::new(r"C:\Windows\System32\tar.exe").args(["-a", "-c", "-f"]).arg(&docx).arg("-C").arg(d.join("src")).arg("word").status().unwrap().success());
+    assert!(zip_docx(&docx, &d.join("src")));
     let md = check(&[docx], conv("md"));
     let t = std::fs::read_to_string(&md[0]).unwrap();
     assert!(t.starts_with(r"\_\_init\_\_ and a\*\*\*\*b") && t.contains("left\tright"), "{t}");
@@ -351,8 +376,8 @@ fn rename_puts_everything_back_when_one_fails() {
     std::fs::write(&a, b"a").unwrap();
     std::fs::write(&b, b"b").unwrap();
     let s = |p: &Path| p.display().to_string();
-    // Windows refuses the second name, so it fails after the first was renamed
-    let pairs = vec![(s(&a), s(&d.join("a2.txt"))), (s(&b), s(&d.join("b2<.txt")))];
+    // the second name can't be made (no such folder), so it fails after the first was renamed
+    let pairs = vec![(s(&a), s(&d.join("a2.txt"))), (s(&b), s(&d.join("missing").join("b2.txt")))];
     assert!(tauri::async_runtime::block_on(crate::shell::rename_files(pairs)).is_err());
     assert!(a.exists() && b.exists() && !d.join("a2.txt").exists());
     assert_eq!(std::fs::read_dir(&d).unwrap().count(), 2, "temporary names left behind");

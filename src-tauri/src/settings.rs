@@ -29,6 +29,14 @@ pub struct Settings {
     pub r2_public: String,
     /// folder of .yar rules for the YARA scan
     pub yara_rules: String,
+    /// Pentest user mode: security tools on the wheel (sandboxed)
+    pub pentest: bool,
+    /// when the authorized-use notice was accepted (seconds since 1970; 0 = never)
+    pub pentest_consented_at: u64,
+    /// Linux: where the drop strip waits: right | left | top | off
+    pub zone_edge: String,
+    /// solid panels instead of glass
+    pub reduce_transparency: bool,
 }
 
 /// A folder whose new files get a recipe automatically.
@@ -67,6 +75,10 @@ impl Settings {
             r2_bucket: String::new(),
             r2_public: String::new(),
             yara_rules: String::new(),
+            pentest: false,
+            pentest_consented_at: 0,
+            zone_edge: "right".into(),
+            reduce_transparency: false,
         }
     }
 
@@ -119,14 +131,95 @@ mod seal {
     }
 }
 
+/// Linux: the desktop keyring (Secret Service, through secret-tool) when there is one; otherwise
+/// the value stays in settings.json, which is written readable by this user only.
 #[cfg(not(windows))]
 mod seal {
+    use std::{
+        collections::HashMap,
+        io::Write,
+        process::{Command, Stdio},
+        sync::Mutex,
+        time::{Duration, Instant},
+    };
+
+    /// value → what was stored for it, so each save doesn't ask the keyring again
+    static DONE: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+    fn id(s: &str) -> String {
+        use sha2::Digest;
+        sha2::Sha256::digest(s.as_bytes()).iter().take(12).map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// Runs secret-tool, giving up after a few seconds (a locked keyring can wait for a prompt).
+    fn secret_tool(args: &[&str], input: Option<&str>) -> Option<Vec<u8>> {
+        let mut child = Command::new("secret-tool")
+            .args(args)
+            .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+        if let (Some(text), Some(mut stdin)) = (input, child.stdin.take()) {
+            let _ = stdin.write_all(text.as_bytes());
+        }
+        let until = Instant::now() + Duration::from_secs(20);
+        loop {
+            match child.try_wait() {
+                Ok(Some(st)) if st.success() => {
+                    let mut out = Vec::new();
+                    use std::io::Read;
+                    child.stdout.take()?.read_to_end(&mut out).ok()?;
+                    return Some(out);
+                }
+                Ok(Some(_)) | Err(_) => return None,
+                Ok(None) if Instant::now() > until => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            }
+        }
+    }
+
     pub fn lock(s: &str) -> Option<String> {
-        Some(s.to_string())
+        if s.is_empty() || s.starts_with("secret:") {
+            return Some(s.to_string());
+        }
+        let mut done = DONE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(v) = done.as_ref().and_then(|m| m.get(s)) {
+            return Some(v.clone());
+        }
+        let id = id(s);
+        let stored = secret_tool(&["store", "--label", "Rotae key", "application", "rotae", "key", &id], Some(s)).is_some();
+        let v = if stored { format!("secret:{id}") } else { s.to_string() };
+        done.get_or_insert_with(HashMap::new).insert(s.to_string(), v.clone());
+        Some(v)
     }
+
+    /// None when the keyring doesn't have it (another account or PC, or the keyring is locked).
     pub fn unlock(s: &str) -> Option<String> {
-        Some(s.to_string())
+        let Some(id) = s.strip_prefix("secret:") else { return Some(s.to_string()) };
+        let out = secret_tool(&["lookup", "application", "rotae", "key", id], None)?;
+        let v = String::from_utf8(out).ok().filter(|v| !v.is_empty())?;
+        DONE.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(v.clone(), s.to_string());
+        Some(v)
     }
+}
+
+/// Writes a file only this user can read (Linux: mode 0600; Windows keeps the per-user folder's rights).
+fn write_private(p: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::{io::Write, os::unix::fs::OpenOptionsExt};
+        let mut f = fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(p)?;
+        f.write_all(data)?;
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(p, fs::Permissions::from_mode(0o600))
+    }
+    #[cfg(not(unix))]
+    fs::write(p, data)
 }
 
 /// What the windows see instead of a saved key; sending it back leaves the key unchanged.
@@ -146,7 +239,7 @@ fn masked(s: &Settings) -> Settings {
 /// The keys in memory. One that could not be opened stays sealed (so it isn't wiped on the next save)
 /// and is treated as missing.
 fn usable(v: &str) -> &str {
-    if v.starts_with("dpapi:") {
+    if v.starts_with("dpapi:") || v.starts_with("secret:") {
         ""
     } else {
         v
@@ -248,13 +341,19 @@ fn try_update(app: &AppHandle, f: impl FnOnce(&mut Settings) -> Result<(), Strin
     *CURRENT.lock().unwrap_or_else(|e| e.into_inner()) = Some(s.clone());
     #[cfg(windows)]
     crate::win::set_peek(s.enabled && s.peek);
+    #[cfg(not(windows))]
+    {
+        // after the lock is released: parking reads the settings
+        let app = app.clone();
+        std::thread::spawn(move || crate::windows::zone::park(&app));
+    }
     if let Some(p) = file(app) {
         if let Some(dir) = p.parent() {
             let _ = fs::create_dir_all(dir);
         }
         // write a new file and swap it in, so a crash mid-write can't leave half a file
         let tmp = p.with_extension("json.tmp");
-        let saved = fs::write(&tmp, serde_json::to_string_pretty(&sealed).unwrap_or_default()).and_then(|_| fs::rename(&tmp, &p));
+        let saved = write_private(&tmp, serde_json::to_string_pretty(&sealed).unwrap_or_default().as_bytes()).and_then(|_| fs::rename(&tmp, &p));
         if let Err(e) = saved {
             crate::log(&format!("settings: could not save: {e}"));
         }
@@ -294,15 +393,12 @@ pub async fn update_settings(app: AppHandle, patch: serde_json::Value) -> Result
 
 #[tauri::command]
 pub fn get_autostart(app: AppHandle) -> bool {
-    use tauri_plugin_autostart::ManagerExt;
-    app.autolaunch().is_enabled().unwrap_or(false)
+    crate::platform::autostart_enabled(&app)
 }
 
 #[tauri::command]
 pub async fn set_autostart(app: AppHandle, on: bool) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-    let al = app.autolaunch();
-    if on { al.enable() } else { al.disable() }.map_err(|e| e.to_string())
+    crate::platform::set_autostart(&app, on)
 }
 
 #[cfg(all(test, windows))]

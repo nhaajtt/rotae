@@ -263,3 +263,18 @@ body.warn #disc {
   fill: var(--ink-soft);
   opacity: 0.7;
 }
+
+/* Linux: the window waits at the screen edge as a thin strip that files are dragged onto */
+body.parked::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  border-radius: 3px 0 0 3px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 75%, white), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+body.parked #glass,
+body.parked #wheel {
+  display: none;
+}

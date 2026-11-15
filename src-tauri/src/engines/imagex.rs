@@ -57,6 +57,25 @@ fn ocr_ready(src: &Path) -> Result<(PathBuf, bool)> {
     Ok((tmp, true))
 }
 
+/// Tesseract with every installed language that is useful here (Vietnamese and English first).
+#[cfg(not(windows))]
+fn tesseract(file: &Path) -> Result<String> {
+    let have = std::process::Command::new("tesseract").arg("--list-langs").output();
+    let Ok(have) = have else { bail!("text recognition needs Tesseract: sudo apt install tesseract-ocr tesseract-ocr-vie") };
+    let list = String::from_utf8_lossy(&have.stdout);
+    let langs: Vec<&str> = ["vie", "eng"].into_iter().filter(|l| list.lines().any(|x| x.trim() == *l)).collect();
+    let mut cmd = std::process::Command::new("tesseract");
+    cmd.arg(file).arg("stdout");
+    if !langs.is_empty() {
+        cmd.args(["-l", &langs.join("+")]);
+    }
+    let o = super::tools::output_within(&mut cmd, std::time::Duration::from_secs(120))?;
+    if !o.status.success() {
+        bail!("Tesseract failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or(""));
+    }
+    Ok(String::from_utf8_lossy(&o.stdout).trim().to_string())
+}
+
 pub fn ocr_text(src: &Path) -> Result<String> {
     #[cfg(windows)]
     {
@@ -69,8 +88,12 @@ pub fn ocr_text(src: &Path) -> Result<String> {
     }
     #[cfg(not(windows))]
     {
-        let _ = src;
-        bail!("text recognition is only available on Windows for now")
+        let (file, temp) = ocr_ready(src)?;
+        let r = tesseract(&file);
+        if temp {
+            let _ = std::fs::remove_file(&file);
+        }
+        r
     }
 }
 
@@ -241,8 +264,7 @@ fn watermark(src: &Path, text: &str) -> Result<PathBuf> {
     if text.is_empty() {
         bail!("no watermark text");
     }
-    let fonts = std::env::var_os("WINDIR").map(|w| Path::new(&w).join("Fonts")).context("no fonts folder")?;
-    let font = ["segoeuib.ttf", "arialbd.ttf", "segoeui.ttf", "arial.ttf"].iter().map(|f| fonts.join(f)).find(|p| p.is_file()).context("no font found")?;
+    let font = crate::platform::system_font(true).context("no font found (Linux: sudo apt install fonts-dejavu-core)")?;
     // ffmpeg runs in a scratch folder holding the font and text, so no path needs escaping
     let dir = temp_file("wm");
     std::fs::create_dir_all(&dir)?;

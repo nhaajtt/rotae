@@ -5,6 +5,7 @@ mod engines;
 mod explorer;
 mod jobs;
 mod naming;
+mod platform;
 mod settings;
 mod share;
 mod shell;
@@ -13,15 +14,17 @@ mod tray;
 #[cfg(windows)]
 mod win;
 mod windows;
+#[cfg(target_os = "linux")]
+mod x11drag;
 #[cfg(windows)]
 mod winrt;
 
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
 
-/// Where the log lives: %LOCALAPPDATA%\Rotae\logs (kept on this PC, never sent anywhere).
+/// Where the log lives: the per-user data folder (kept on this PC, never sent anywhere).
 pub fn log_dir() -> std::path::PathBuf {
-    std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir).join("Rotae").join("logs")
+    platform::data_dir().join("logs")
 }
 
 /// Appends a timestamped line to the log; the file is rotated at 1 MB.
@@ -58,7 +61,10 @@ async fn open_link(url: String) -> Result<(), String> {
 async fn open_logs() -> Result<(), String> {
     let dir = log_dir();
     let _ = std::fs::create_dir_all(&dir);
-    std::process::Command::new("explorer").arg(dir).spawn().map(|_| ()).map_err(|e| e.to_string())
+    #[cfg(windows)]
+    return std::process::Command::new("explorer").arg(dir).spawn().map(|_| ()).map_err(|e| e.to_string());
+    #[cfg(not(windows))]
+    platform::xdg_open(&dir).map_err(|e| e.to_string())
 }
 
 /// Opens a new GitHub issue with the app and Windows versions filled in. Nothing is sent by
@@ -66,7 +72,7 @@ async fn open_logs() -> Result<(), String> {
 #[tauri::command]
 async fn report_bug(app: tauri::AppHandle, context: Option<String>) -> Result<(), String> {
     let version = app.package_info().version.to_string();
-    let build = engines::tools::quiet(std::path::Path::new("cmd")).args(["/C", "ver"]).output().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+    let build = platform::os_name();
     let message = context.map(|c| format!("**Message**\n```\n{c}\n```\n\n")).unwrap_or_default();
     let body = format!(
         "**What happened**\n\n\n**What you expected**\n\n\n**Steps**\n1. \n\n{message}**Version** Rotae {version}, {build}\n\n_Settings › Report a problem › Open log folder has a log you can attach (it contains file names)._"
@@ -156,9 +162,18 @@ fn start_drag_watch(app: tauri::AppHandle) {
     });
 }
 
+/// Linux: drags reach the wheel through its drop strip at the screen edge (see windows.rs), and on
+/// X11 also by holding Shift while dragging.
+#[cfg(not(windows))]
+fn start_drag_watch(app: tauri::AppHandle) {
+    #[cfg(target_os = "linux")]
+    x11drag::start(app);
+    #[cfg(not(target_os = "linux"))]
+    let _ = app;
+}
+
 fn autostart_on_first_run(app: &tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-    app.autolaunch().enable().map_err(|e| e.to_string())
+    platform::set_autostart(app, true)
 }
 
 /// Files passed with `--open` (Explorer's right-click entry). Explorer may start one process per
@@ -184,6 +199,7 @@ fn opened_with(app: &tauri::AppHandle, argv: Vec<String>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    platform::prepare_display();
     std::panic::set_hook(Box::new(|p| log(&format!("panic: {p}"))));
     log(&format!("start {}", env!("CARGO_PKG_VERSION")));
     tauri::Builder::default()
@@ -220,6 +236,7 @@ pub fn run() {
             engines::security::sandbox_ok,
             engines::office::office_ok,
             engines::pdf::pdf_thumbs,
+            engines::pentest::pentest_tools,
             shell::trash,
             share::share_lan,
             share::share_r2,

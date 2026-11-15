@@ -5,12 +5,13 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SAMPLES, buildMenu, ctx, flatActions, kindOf, loadContext, MORE, menuFor, noteUse, prefs, savePrefs } from './menu.js';
 import { runTarget } from './run.js';
 import { initTheme } from './theme.js';
-import { addView, h, name, settings, settingsSections, shared, toggle, views } from './ui.js';
+import { addView, h, LINUX, name, settings, settingsSections, shared, toggle, views } from './ui.js';
 import './features.js';
 import './recipes.js';
 import './share-ui.js';
 import './welcome.js';
 import './activity.js';
+import './pentest.js';
 
 initTheme();
 
@@ -184,7 +185,9 @@ addView({
       err.hidden = true;
       submit.disabled = true;
       try {
-        await runTarget({ ...it, ask: undefined, action: { ...it.action, ...values } }, files);
+        // a pentest tool's authorization question was answered: the backend checks this too
+        const confirmed = it.danger && it.action?.op === 'pentest' ? { confirmed: true } : {};
+        await runTarget({ ...it, ask: undefined, action: { ...it.action, ...values, ...confirmed } }, files);
         asking = null;
         getCurrentWindow().hide();
       } catch (x) {
@@ -289,11 +292,23 @@ addView({
     root.append(h('h1', {}, 'Settings'), h('p', { class: 'sub' }, 'Everything runs on this computer. Features that need the internet stay off until you turn them on.'));
     const general = h('div', { class: 'card glass' });
     general.append(
-      toggle('Shift + drag menu', 'Start dragging a file, then hold Shift.', s.enabled, (v) => settings.set({ enabled: v })),
-      toggle('Only from File Explorer and desktop', null, s.explorer_only, (v) => settings.set({ explorer_only: v })),
-      toggle('Quick look', 'Ctrl+Space in File Explorer previews the selected file.', s.peek, (v) => settings.set({ peek: v })),
-      toggle('Start with Windows', null, auto, (v) => invoke('set_autostart', { on: v })),
+      ...[
+        LINUX
+          ? toggle('Drag menu', 'Drag a file to the glowing strip at the screen edge (on X11 also: hold Shift while dragging).', s.enabled, (v) => settings.set({ enabled: v }))
+          : toggle('Shift + drag menu', 'Start dragging a file, then hold Shift.', s.enabled, (v) => settings.set({ enabled: v })),
+        // Linux can't tell which program a drag comes from
+        !LINUX && toggle('Only from File Explorer and desktop', null, s.explorer_only, (v) => settings.set({ explorer_only: v })),
+        // Quick look listens for Ctrl+Space in Explorer, which only exists on Windows
+        !LINUX && toggle('Quick look', 'Ctrl+Space in File Explorer previews the selected file.', s.peek, (v) => settings.set({ peek: v })),
+        toggle(LINUX ? 'Start at login' : 'Start with Windows', null, auto, (v) => invoke('set_autostart', { on: v })),
+      ].filter(Boolean),
     );
+    if (LINUX) {
+      const edges = [['right', 'Right edge'], ['left', 'Left edge'], ['top', 'Top edge'], ['off', 'Off']];
+      const edge = h('select', { onchange: (e) => settings.set({ zone_edge: e.target.value }).catch((x) => alertLine(String(x))) }, edges.map(([v, l]) => h('option', { value: v, selected: (s.zone_edge || 'right') === v }, l)));
+      general.append(h('div', { class: 'field' }, h('div', { class: 'what' }, 'Drop strip', h('small', {}, 'Where the glowing strip waits for files dragged to the screen edge.')), edge));
+    }
+    general.append(toggle('Reduce transparency', 'Solid panels instead of glass: easier to read and lighter on slow graphics.', !!s.reduce_transparency, (v) => settings.set({ reduce_transparency: v })));
     const theme = h('select', { onchange: (e) => settings.set({ theme: e.target.value }).catch((x) => alertLine(String(x))) }, ['system', 'light', 'dark'].map((t) => h('option', { value: t, selected: s.theme === t }, t)));
     general.append(h('div', { class: 'field' }, h('div', { class: 'what' }, 'Appearance'), theme));
     const lang = h('select', { onchange: (e) => settings.set({ lang: e.target.value }).then(() => location.reload(), (x) => alertLine(String(x))) }, [['system', 'system'], ['en', 'English'], ['vi', 'Tiếng Việt']].map(([v, l]) => h('option', { value: v, selected: (s.lang || 'system') === v, translate: 'no' }, l)));

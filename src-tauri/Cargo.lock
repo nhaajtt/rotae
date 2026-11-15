@@ -4697,12 +4697,14 @@ checksum = "84348444bd7ad45729d0c49a4240d7cdc11c9d512c06c5ad1835c1ad4acda6db"
 
 [[package]]
 name = "rotae"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "age",
  "anyhow",
  "base64 0.22.1",
+ "flate2",
  "getrandom 0.3.4",
+ "gtk",
  "image 0.25.10",
  "infer 0.19.0",
  "md-5",

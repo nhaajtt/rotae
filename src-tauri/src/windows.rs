@@ -13,7 +13,7 @@ const TOAST: (f64, f64) = (380.0, 112.0);
 const MARGIN: f64 = 8.0;
 
 fn floating(app: &AppHandle, label: &str, page: &str, size: (f64, f64)) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+    let b = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
         .title("Rotae")
         .inner_size(size.0, size.1)
         .transparent(true)
@@ -23,17 +23,121 @@ fn floating(app: &AppHandle, label: &str, page: &str, size: (f64, f64)) -> tauri
         .skip_taskbar(true)
         .resizable(false)
         .focused(false)
-        .visible(false)
-        // never accept the drop itself: releasing over the menu cancels Explorer's move
-        .disable_drag_drop_handler()
-        .build()
+        .visible(false);
+    // Windows: never accept the drop itself, releasing over the menu cancels Explorer's move.
+    // Linux: the wheel is reached by dragging onto it, so it takes drops (as a copy).
+    #[cfg(windows)]
+    let b = b.disable_drag_drop_handler();
+    b.build()
 }
 
 /// The overlay and the toast are created once, hidden, so they appear instantly.
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
-    floating(app, "overlay", "overlay.html", (OVERLAY, OVERLAY))?;
+    let overlay = floating(app, "overlay", "overlay.html", (OVERLAY, OVERLAY))?;
     floating(app, "toast", "toast.html", TOAST)?;
+    #[cfg(not(windows))]
+    zone::start(app, &overlay);
+    #[cfg(windows)]
+    let _ = overlay;
     Ok(())
+}
+
+/// Linux: the wheel window waits as a thin glass strip at the right edge of the screen. Dragging
+/// files onto it opens the wheel right there; dropping on a wedge runs it. The paths come with the
+/// drag itself, so this needs no global hooks and works on X11 and Wayland alike.
+#[cfg(not(windows))]
+pub mod zone {
+    use super::*;
+    use tauri::{DragDropEvent, WindowEvent};
+
+    /// Thickness in logical pixels, length as a share of the screen side.
+    const STRIP: (f64, f64) = (4.0, 0.3);
+
+    pub fn start(app: &AppHandle, w: &WebviewWindow) {
+        let a = app.clone();
+        w.on_window_event(move |e| {
+            if let WindowEvent::DragDrop(ev) = e {
+                event(&a, ev);
+            }
+        });
+        park(app);
+    }
+
+    /// Back to the strip (or hidden while the menu is turned off).
+    pub fn park(app: &AppHandle) {
+        // a settings change while the wheel is open must not pull it out from under the drag
+        if wheel_open() {
+            return;
+        }
+        let Some(w) = app.get_webview_window("overlay") else { return };
+        let s = crate::settings::get(app);
+        if !s.enabled || s.zone_edge == "off" {
+            let _ = w.hide();
+            return;
+        }
+        let Some(m) = w.primary_monitor().ok().flatten().or_else(|| w.current_monitor().ok().flatten()) else { return };
+        let (k, a) = (m.scale_factor(), m.work_area());
+        let (ax, ay, aw, ah) = (a.position.x, a.position.y, a.size.width as i32, a.size.height as i32);
+        let thin = (STRIP.0 * k).round().max(2.0) as i32;
+        let (long_v, long_h) = ((ah as f64 * STRIP.1) as i32, (aw as f64 * STRIP.1) as i32);
+        let (x, y, width, height) = match s.zone_edge.as_str() {
+            "left" => (ax, ay + (ah - long_v) / 2, thin, long_v),
+            "top" => (ax + (aw - long_h) / 2, ay, long_h, thin),
+            _ => (ax + aw - thin, ay + (ah - long_v) / 2, thin, long_v),
+        };
+        let _ = w.emit("overlay:parked", ());
+        place(&w, x, y, width, height);
+    }
+
+    /// The wheel was opened by Shift-drag and the drag hasn't brought its files yet.
+    static AWAITING: AtomicBool = AtomicBool::new(false);
+    /// The wheel on screen was opened by Shift-drag: like on Windows it stays until the button is
+    /// released, so overshooting its edge and coming back still works.
+    pub static BY_SHIFT: AtomicBool = AtomicBool::new(false);
+
+    /// X11 Shift-drag: the wheel opens under the pointer; the drag enters it with the files.
+    pub fn open_for_drag(app: &AppHandle, x: i32, y: i32) {
+        AWAITING.store(true, Ordering::SeqCst);
+        BY_SHIFT.store(true, Ordering::SeqCst);
+        show_overlay(app, x, y, &[]);
+    }
+
+    /// The button was released: if no drop closed the wheel by now (no files came, or the drop
+    /// landed outside it), close it.
+    pub fn give_up(app: &AppHandle) {
+        let waited = AWAITING.swap(false, Ordering::SeqCst);
+        if BY_SHIFT.load(Ordering::SeqCst) && wheel_open() {
+            crate::log(if waited { "shift-drag: no files reached the wheel; closed" } else { "shift-drag: released outside the wheel; closed" });
+            hide_overlay(app);
+        }
+    }
+
+    fn event(app: &AppHandle, ev: &DragDropEvent) {
+        match ev {
+            // Shift-drag: the wheel is already under the pointer, now its menu can be built
+            DragDropEvent::Enter { paths, .. } if !paths.is_empty() && wheel_open() && AWAITING.swap(false, Ordering::SeqCst) => {
+                let warnings = paths.iter().take(50).filter_map(|p| crate::engines::security::disguise(p)).collect();
+                let _ = app.emit_to("overlay", "overlay:show", Show { paths, backdrop: None, warnings, waiting: false });
+            }
+            DragDropEvent::Enter { paths, position } if !paths.is_empty() && !wheel_open() => {
+                let Some(w) = app.get_webview_window("overlay") else { return };
+                let at = w.outer_position().unwrap_or_default();
+                // centred on the pointer and kept on screen, so it ends up flush with the edge
+                // and the pointer stays inside the grown window: the drag carries on into the wheel
+                show_overlay(app, at.x + position.x as i32, at.y + position.y as i32, paths);
+            }
+            DragDropEvent::Over { position } if wheel_open() => {
+                let _ = app.emit_to("overlay", "overlay:move", (position.x as i32, position.y as i32));
+            }
+            DragDropEvent::Drop { position, .. } if wheel_open() => {
+                let _ = app.emit_to("overlay", "overlay:drop", (position.x as i32, position.y as i32));
+                hide_overlay_later(app);
+            }
+            // the strip's wheel closes when the drag leaves it; a Shift wheel waits for the release
+            DragDropEvent::Leave if wheel_open() && !BY_SHIFT.load(Ordering::SeqCst) => hide_overlay(app),
+            _ => {}
+        }
+    }
 }
 
 /// Monitor rectangle (physical) and scale for the point.
@@ -72,6 +176,8 @@ struct Show<'a> {
     backdrop: Option<String>,
     /// files that pretend to be something else (e.g. a program named like a PDF)
     warnings: Vec<String>,
+    /// Linux Shift-drag: the wheel is up and the drag (with its files) is about to reach it
+    waiting: bool,
 }
 
 #[cfg(windows)]
@@ -98,14 +204,16 @@ pub fn show_overlay(app: &AppHandle, x: i32, y: i32, paths: &[PathBuf]) {
     let top = (y - s / 2).clamp(mp.y, mp.y + ms.height as i32 - s);
     *ORIGIN.lock().unwrap_or_else(|e| e.into_inner()) = (left, top);
     SHOWN.fetch_add(1, Ordering::SeqCst);
+    WHEEL.store(true, Ordering::SeqCst);
     let warnings = paths.iter().take(50).filter_map(|p| crate::engines::security::disguise(p)).collect();
-    let _ = w.emit("overlay:show", Show { paths, backdrop: backdrop(left, top, s), warnings });
+    let _ = w.emit("overlay:show", Show { paths, backdrop: backdrop(left, top, s), warnings, waiting: paths.is_empty() });
     place(&w, left, top, s, s);
     #[cfg(windows)]
     crate::win::set_menu_open(true);
 }
 
 /// Cursor moved (`drop` = button released) during a drag that has the menu open.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn overlay_pointer(app: &AppHandle, x: i32, y: i32, drop: bool) {
     let (left, top) = *ORIGIN.lock().unwrap_or_else(|e| e.into_inner());
     let event = if drop { "overlay:drop" } else { "overlay:move" };
@@ -117,6 +225,12 @@ pub fn overlay_pointer(app: &AppHandle, x: i32, y: i32, drop: bool) {
 
 /// Counts menu openings, so a late safety hide never closes a newer menu.
 static SHOWN: AtomicU32 = AtomicU32::new(0);
+/// The wheel is on screen (on Linux the window also stays up as the drop strip).
+static WHEEL: AtomicBool = AtomicBool::new(false);
+
+pub fn wheel_open() -> bool {
+    WHEEL.load(Ordering::SeqCst)
+}
 
 /// The wheel hides itself after a drop or Escape. If its page doesn't answer (it failed to load,
 /// an event was lost), hide it from here, so a topmost window never stays over the screen and
@@ -125,8 +239,7 @@ pub fn hide_overlay_later(app: &AppHandle) {
     let (app, shown) = (app.clone(), SHOWN.load(Ordering::SeqCst));
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(3));
-        let visible = app.get_webview_window("overlay").is_some_and(|w| w.is_visible().unwrap_or(false));
-        if visible && SHOWN.load(Ordering::SeqCst) == shown {
+        if wheel_open() && SHOWN.load(Ordering::SeqCst) == shown {
             crate::log("overlay didn't close itself; hidden");
             hide_overlay(&app);
         }
@@ -136,9 +249,15 @@ pub fn hide_overlay_later(app: &AppHandle) {
 pub fn hide_overlay(app: &AppHandle) {
     #[cfg(windows)]
     crate::win::set_menu_open(false);
+    WHEEL.store(false, Ordering::SeqCst);
+    #[cfg(not(windows))]
+    zone::BY_SHIFT.store(false, Ordering::SeqCst);
     if let Some(w) = app.get_webview_window("overlay") {
         let _ = w.emit("overlay:hide", ());
+        #[cfg(windows)]
         let _ = w.hide();
+        #[cfg(not(windows))]
+        zone::park(app);
     }
 }
 

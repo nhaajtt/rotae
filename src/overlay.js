@@ -19,6 +19,7 @@ const disc = document.getElementById('disc');
 
 let paths = [];
 let warnings = []; // files pretending to be another type
+let waiting = false; // Linux Shift-drag: up before the drag has brought its files
 loadContext(invoke);
 let menu = null;
 let hot = null; // { ring: 0 } | { ring: 1, i } | { ring: 2, i, j }
@@ -95,6 +96,8 @@ function render() {
   if (menu) {
     text(coreText, C, C - 6, 'core-label', `→ ${menu.center.label}`);
     text(coreText, C, C + 14, warnings.length ? 'core-hint warn' : 'core-hint', warnings.length ? '⚠ fake type' : n > 1 ? `${n} files` : 'drop here');
+  } else if (waiting) {
+    text(coreText, C, C, 'core-hint', 'drop here');
   } else {
     text(coreText, C, C - 4, 'core-hint', 'not');
     text(coreText, C, C + 10, 'core-hint', 'supported');
@@ -213,6 +216,7 @@ function close() {
 let contextAt = Date.now();
 
 listen('overlay:show', ({ payload }) => {
+  document.body.classList.remove('parked');
   if (Date.now() - contextAt > 60000) {
     contextAt = Date.now();
     setTimeout(() => loadContext(invoke), 1500);
@@ -221,6 +225,7 @@ listen('overlay:show', ({ payload }) => {
   glass.classList.remove('open');
   pending = null; // a move queued for the last wheel must not stall this one
   paths = payload.paths || [];
+  waiting = !!payload.waiting;
   locked = false;
   warnings = payload.warnings || [];
   document.body.classList.toggle('warn', warnings.length > 0);
@@ -256,6 +261,9 @@ function shade(src) {
   img.src = src;
 }
 
+// Linux: back to the drop strip at the screen edge
+listen('overlay:parked', () => document.body.classList.add('parked'));
+
 listen('overlay:key', ({ payload: n }) => {
   if (!menu) return;
   if (n === 0) return close();
@@ -265,6 +273,9 @@ listen('overlay:key', ({ payload: n }) => {
     locked = true;
   }
 });
+
+// Pentest user mode switched on or off, or tools installed: rebuild what the wheel offers
+listen('settings', () => loadContext(invoke));
 
 // mice report up to 1000 moves a second; handle only the latest one per frame
 let pending = null;

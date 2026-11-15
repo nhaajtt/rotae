@@ -1,7 +1,9 @@
 //! Small file-system helpers for the hub: undo (to the Recycle Bin), files or images from the
 //! clipboard, batch rename, and the Explorer right-click entry.
 
-use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::path::Path;
+use std::path::PathBuf;
 
 /// Moves files to the Recycle Bin, so "Undo" can itself be undone from there.
 #[tauri::command]
@@ -26,9 +28,18 @@ pub async fn trash(paths: Vec<String>) -> Result<(), String> {
             return Err("couldn't move to the Recycle Bin".into());
         }
     }
+    // Linux: the desktop's trash (gio comes with GTK, trash-put with trash-cli). Never a plain
+    // delete: Undo must stay undoable.
     #[cfg(not(windows))]
-    for p in paths {
-        let _ = std::fs::remove_file(p);
+    {
+        let paths: Vec<&String> = paths.iter().filter(|p| std::path::Path::new(p).exists()).collect();
+        if paths.is_empty() {
+            return Ok(());
+        }
+        let ok = |prog: &str, args: &[&str]| std::process::Command::new(prog).args(args).args(&paths).output().is_ok_and(|o| o.status.success());
+        if !(ok("gio", &["trash", "--"]) || ok("trash-put", &["--"])) {
+            return Err("couldn't move to the trash (needs gio or trash-cli)".into());
+        }
     }
     Ok(())
 }
@@ -210,6 +221,8 @@ pub async fn context_menu(enable: bool) -> Result<(), String> {
             }
         }
     }
+    #[cfg(not(windows))]
+    linux_menu::set(enable).map_err(|e| e.to_string())?;
     let _ = enable;
     Ok(())
 }
@@ -223,5 +236,94 @@ pub async fn context_menu_on() -> bool {
         .map(|o| o.status.success())
         .unwrap_or(false);
     #[cfg(not(windows))]
-    false
+    linux_menu::is_on()
+}
+
+/// Linux: "Rotae…" in the file managers' right-click menus, all per user:
+/// Nautilus script, Nemo action, Dolphin service menu, Thunar custom action, and an
+/// "Open with" entry that every file manager shows.
+#[cfg(not(windows))]
+mod linux_menu {
+    use std::{fs, io, path::PathBuf};
+
+    const THUNAR_ID: &str = "rotae-open";
+
+    fn home() -> PathBuf {
+        std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
+    }
+    fn data() -> PathBuf {
+        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).unwrap_or_else(|| home().join(".local").join("share"))
+    }
+    fn config() -> PathBuf {
+        std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).unwrap_or_else(|| home().join(".config"))
+    }
+
+    fn exe() -> io::Result<String> {
+        crate::platform::launcher_path()
+    }
+
+    fn files() -> [PathBuf; 4] {
+        [
+            data().join("nautilus").join("scripts").join("Rotae…"),
+            data().join("nemo").join("actions").join("rotae.nemo_action"),
+            data().join("kio").join("servicemenus").join("rotae.desktop"),
+            data().join("applications").join("rotae-open.desktop"),
+        ]
+    }
+
+    fn write(p: &PathBuf, text: &str, executable: bool) -> io::Result<()> {
+        if let Some(d) = p.parent() {
+            fs::create_dir_all(d)?;
+        }
+        fs::write(p, text)?;
+        if executable {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(p, fs::Permissions::from_mode(0o755))?;
+        }
+        Ok(())
+    }
+
+    pub fn set(enable: bool) -> io::Result<()> {
+        let [nautilus, nemo, dolphin, open_with] = files();
+        if !enable {
+            for p in files() {
+                let _ = fs::remove_file(p);
+            }
+            return thunar(None);
+        }
+        let exe = exe()?;
+        write(&nautilus, &format!("#!/bin/sh\n# Rotae: actions for the selected files\nset -f\nIFS='\n'\nexec \"{exe}\" --open $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS\n"), true)?;
+        write(&nemo, &format!("[Nemo Action]\nName=Rotae…\nComment=Convert, compress, check and share\nExec=\"{exe}\" --open %F\nIcon-Name=rotae\nSelection=notnone\nExtensions=any;\n"), false)?;
+        write(&dolphin, &format!("[Desktop Entry]\nType=Service\nMimeType=application/octet-stream;inode/directory;all/allfiles;\nActions=rotae\nX-KDE-Priority=TopLevel\n\n[Desktop Action rotae]\nName=Rotae…\nIcon=rotae\nExec=\"{exe}\" --open %F\n"), true)?;
+        write(&open_with, &format!("[Desktop Entry]\nType=Application\nName=Rotae\nComment=Convert, compress, check and share files\nExec=\"{exe}\" --open %F\nIcon=rotae\nTerminal=false\nNoDisplay=true\nMimeType=application/octet-stream;application/pdf;image/png;image/jpeg;image/webp;video/mp4;audio/mpeg;text/plain;\n"), false)?;
+        thunar(Some(&exe))
+    }
+
+    /// Thunar keeps custom actions in one XML file; only our own entry is added or removed.
+    fn thunar(exe: Option<&str>) -> io::Result<()> {
+        let p = config().join("Thunar").join("uca.xml");
+        let mut xml = fs::read_to_string(&p).unwrap_or_else(|_| "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<actions>\n</actions>\n".into());
+        // drop an earlier copy of our entry
+        while let Some(id) = xml.find(&format!("<unique-id>{THUNAR_ID}</unique-id>")) {
+            let (Some(start), Some(end)) = (xml[..id].rfind("<action>"), xml[id..].find("</action>")) else { break };
+            let end = id + end + "</action>".len();
+            xml.replace_range(start..end, "");
+        }
+        if let Some(exe) = exe {
+            let esc = exe.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+            let entry = format!("<action>\n\t<icon>rotae</icon>\n\t<name>Rotae…</name>\n\t<unique-id>{THUNAR_ID}</unique-id>\n\t<command>&quot;{esc}&quot; --open %F</command>\n\t<description>Convert, compress, check and share</description>\n\t<patterns>*</patterns>\n\t<directories/>\n\t<audio-files/>\n\t<image-files/>\n\t<other-files/>\n\t<text-files/>\n\t<video-files/>\n</action>\n");
+            let Some(at) = xml.rfind("</actions>") else { return Err(io::Error::other("Thunar's actions file looks damaged; left it alone")) };
+            xml.insert_str(at, &entry);
+        } else if !p.exists() {
+            return Ok(());
+        }
+        if let Some(d) = p.parent() {
+            fs::create_dir_all(d)?;
+        }
+        fs::write(&p, xml)
+    }
+
+    pub fn is_on() -> bool {
+        files().iter().any(|p| p.exists())
+    }
 }

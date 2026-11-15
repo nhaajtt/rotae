@@ -18,6 +18,7 @@ pub struct App {
 }
 
 /// id, label, kinds, shortcut-name prefixes (lowercase)
+#[cfg(windows)]
 const KNOWN: &[(&str, &str, &[&str], &[&str])] = &[
     ("vscode", "VS Code", &["text", "any"], &["visual studio code"]),
     ("cursor", "Cursor", &["text", "any"], &["cursor"]),
@@ -36,6 +37,7 @@ const KNOWN: &[(&str, &str, &[&str], &[&str])] = &[
     ("wireshark", "Wireshark", &["pcap"], &["wireshark"]),
 ];
 
+#[cfg(windows)]
 const SKIP: &[&str] = &["uninstall", "help", "tutorial", "installer", "readme", "manual", "documentation", "website", "release notes"];
 
 static APPS: OnceLock<Vec<App>> = OnceLock::new();
@@ -44,6 +46,7 @@ pub fn all() -> &'static [App] {
     APPS.get_or_init(scan)
 }
 
+#[cfg(windows)]
 fn shortcut_dirs() -> Vec<PathBuf> {
     let env = |v: &str| std::env::var_os(v).map(PathBuf::from);
     let mut dirs = Vec::new();
@@ -63,6 +66,7 @@ fn shortcut_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+#[cfg(windows)]
 fn walk(dir: &Path, depth: u32, found: &mut Vec<PathBuf>, wanted: &dyn Fn(&Path) -> bool) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     for e in rd.flatten() {
@@ -76,7 +80,38 @@ fn walk(dir: &Path, depth: u32, found: &mut Vec<PathBuf>, wanted: &dyn Fn(&Path)
         }
     }
 }
+/// Linux: id, label, kinds, program names on PATH (first found wins).
+#[cfg(not(windows))]
+const KNOWN_LINUX: &[(&str, &str, &[&str], &[&str])] = &[
+    ("vscode", "VS Code", &["text", "any"], &["code", "codium"]),
+    ("cursor", "Cursor", &["text", "any"], &["cursor"]),
+    ("sublime", "Sublime", &["text"], &["subl"]),
+    ("kate", "Kate", &["text"], &["kate"]),
+    ("gedit", "Text Editor", &["text"], &["gnome-text-editor", "gedit"]),
+    ("mousepad", "Mousepad", &["text"], &["mousepad"]),
+    ("edb", "edb", &["exe"], &["edb"]),
+    ("ida", "IDA", &["exe"], &["ida64", "ida"]),
+    ("ghidra", "Ghidra", &["exe"], &["ghidra", "ghidraRun"]),
+    ("binja", "Binary Ninja", &["exe"], &["binaryninja"]),
+    ("cutter", "Cutter", &["exe"], &["cutter", "Cutter"]),
+    ("iaito", "iaito", &["exe"], &["iaito"]),
+    ("die", "DIE", &["exe"], &["die"]),
+    ("imhex", "ImHex", &["exe", "any"], &["imhex"]),
+    ("ghex", "GHex", &["exe", "any"], &["ghex"]),
+    ("jadx", "jadx", &["apk"], &["jadx-gui"]),
+    ("wireshark", "Wireshark", &["pcap"], &["wireshark"]),
+];
 
+#[cfg(not(windows))]
+fn scan() -> Vec<App> {
+    KNOWN_LINUX
+        .iter()
+        .filter_map(|&(id, label, kinds, bins)| bins.iter().find_map(|b| crate::platform::which(b)).map(|target| App { id, label, kinds, target }))
+        .collect()
+}
+
+
+#[cfg(windows)]
 fn scan() -> Vec<App> {
     let mut links = Vec::new();
     for d in shortcut_dirs() {
@@ -99,6 +134,7 @@ fn scan() -> Vec<App> {
 }
 
 /// Ghidra ships as a zip without shortcuts; look for ghidraRun.bat in the usual places.
+#[cfg(windows)]
 fn find_ghidra() -> Option<PathBuf> {
     let home = std::env::var_os("USERPROFILE").map(PathBuf::from)?;
     let roots = [PathBuf::from("C:\\"), PathBuf::from("D:\\"), PathBuf::from("C:\\Tools"), home.clone(), home.join("Downloads"), home.join("Desktop"), home.join("tools")];
@@ -160,8 +196,38 @@ fn launch(target: &Path, args: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Linux: the arguments are split on spaces outside double quotes (paths never hold a quote,
+/// see `open_with`) and passed straight to the program, never through a shell. The app keeps
+/// running after Rotae quits.
 #[cfg(not(windows))]
 fn launch(target: &Path, args: &str) -> Result<(), String> {
-    let _ = (target, args);
-    Err("not supported yet".into())
+    use std::process::{Command, Stdio};
+    let mut argv = Vec::new();
+    let (mut cur, mut quoted, mut any) = (String::new(), false, false);
+    for c in args.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                any = true;
+            }
+            ' ' if !quoted => {
+                if any || !cur.is_empty() {
+                    argv.push(std::mem::take(&mut cur));
+                }
+                any = false;
+            }
+            c => cur.push(c),
+        }
+    }
+    if any || !cur.is_empty() {
+        argv.push(cur);
+    }
+    Command::new(target)
+        .args(&argv)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("couldn't start {}: {e}", target.display()))
 }

@@ -69,16 +69,20 @@ pub(crate) fn tar_member(name: &str) -> String {
     if name.starts_with(['-', '@']) { format!("./{name}") } else { name.to_string() }
 }
 
-/// Windows' own bsdtar (zip, tar, gz, xz, bz2, 7z, rar); Git's tar on PATH can't write zips.
+/// bsdtar (zip, tar, gz, xz, bz2, 7z, rar): Windows ships it in System32, Linux has it in
+/// libarchive-tools. GNU tar and Git's tar can't write zips.
+#[cfg(windows)]
 fn tar() -> Command {
+    use std::os::windows::process::CommandExt;
     let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
     let mut cmd = Command::new(Path::new(&root).join("System32").join("tar.exe"));
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(super::tools::CREATE_NO_WINDOW);
-    }
+    cmd.creation_flags(super::tools::CREATE_NO_WINDOW);
     cmd
+}
+
+#[cfg(not(windows))]
+fn tar() -> Command {
+    Command::new("bsdtar")
 }
 
 fn zip(paths: &[PathBuf]) -> Result<PathBuf> {

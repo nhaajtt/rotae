@@ -4,7 +4,6 @@ use tauri::{
     tray::TrayIconBuilder,
     AppHandle, Listener, Wry,
 };
-use tauri_plugin_autostart::ManagerExt;
 
 fn cap(s: &str) -> String {
     let mut c = s.chars();
@@ -13,15 +12,15 @@ fn cap(s: &str) -> String {
 
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let s = settings::get(app);
-    let autostart = app.autolaunch().is_enabled().unwrap_or(false);
-    let title = MenuItem::with_id(app, "title", "Rotae — Shift + drag a file", false, None::<&str>)?;
+    let autostart = crate::platform::autostart_enabled(app);
+    let title = MenuItem::with_id(app, "title", if cfg!(windows) { "Rotae — Shift + drag a file" } else { "Rotae — drag a file to the screen edge" }, false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open Rotae…", true, None::<&str>)?;
     let shelf = MenuItem::with_id(app, "shelf", "Shelf", true, None::<&str>)?;
     let help = MenuItem::with_id(app, "welcome", "How to use", true, None::<&str>)?;
     let activity = MenuItem::with_id(app, "activity", "Activity (results and errors)", true, None::<&str>)?;
     let enabled = CheckMenuItem::with_id(app, "enabled", "Enabled", true, s.enabled, None::<&str>)?;
-    let explorer = CheckMenuItem::with_id(app, "explorer_only", "Only from File Explorer and desktop", true, s.explorer_only, None::<&str>)?;
-    let startup = CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, autostart, None::<&str>)?;
+    let explorer = CheckMenuItem::with_id(app, "explorer_only", if cfg!(windows) { "Only from File Explorer and desktop" } else { "Only from the file manager" }, true, s.explorer_only, None::<&str>)?;
+    let startup = CheckMenuItem::with_id(app, "autostart", if cfg!(windows) { "Start with Windows" } else { "Start at login" }, true, autostart, None::<&str>)?;
 
     let accent = Submenu::with_id(app, "accent", "Accent", true)?;
     for a in ACCENTS {
@@ -33,7 +32,14 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     }
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
-    Menu::with_items(app, &[&title, &open, &activity, &shelf, &help, &sep()?, &enabled, &explorer, &startup, &sep()?, &accent, &theme, &sep()?, &quit])
+    // Linux can't tell which program a drag comes from, so "only from Explorer" has no meaning there
+    let (s1, s2, s3) = (sep()?, sep()?, sep()?);
+    let mut items: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = vec![&title, &open, &activity, &shelf, &help, &s1, &enabled];
+    if cfg!(windows) {
+        items.push(&explorer);
+    }
+    items.extend([&startup as &dyn tauri::menu::IsMenuItem<Wry>, &s2, &accent, &theme, &s3, &quit]);
+    Menu::with_items(app, &items)
 }
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
@@ -71,8 +77,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 "enabled" => settings::update(app, |s| s.enabled = !s.enabled),
                 "explorer_only" => settings::update(app, |s| s.explorer_only = !s.explorer_only),
                 "autostart" => {
-                    let al = app.autolaunch();
-                    let _ = if al.is_enabled().unwrap_or(false) { al.disable() } else { al.enable() };
+                    let _ = crate::platform::set_autostart(app, !crate::platform::autostart_enabled(app));
                 }
                 _ => {
                     if let Some(a) = id.strip_prefix("accent:") {

@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Rotae: drag a file, hold Shift, done</title>
-<meta name="description" content="Drag any file and hold Shift: a wheel of actions opens around it. Convert, shrink videos to 8 MB, sign PDFs, copy text from scans, catch fake files, send to your phone. Free and offline, for Windows." />
+<meta name="description" content="Drag any file and hold Shift: a wheel of actions opens around it. Convert, shrink videos to 8 MB, sign PDFs, copy text from scans, catch fake files, send to your phone. Free and offline, for Windows and Linux." />
 <meta property="og:title" content="Rotae" />
-<meta property="og:description" content="Drag a file, hold Shift, done. Free and offline, for Windows." />
+<meta property="og:description" content="Drag a file, hold Shift, done. Free and offline, for Windows and Linux." />
 <meta property="og:image" content="/media/intro-poster.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="theme-color" content="#0b0d14" />
@@ -35,18 +35,23 @@
     <div class="lab-intro-main">
       <h1 class="sr-only" id="intro-heading" data-vi="Rotae: kéo file, giữ Shift, xong">Rotae: drag a file, hold Shift, done</h1>
       <p class="lab-intro-lede" data-words data-vi="<span class='lab-intro-key lab-intro-name'>ROTAE</span> của <a href='https://www.nhaajt.com' target='_blank' rel='noopener'>Nhaajt</a>. <span class='lab-intro-key'>Kéo một file</span>, <span class='lab-intro-key'>giữ Shift</span>, và một vòng tròn thao tác mở ra quanh nó: đổi định dạng, nén video, ký PDF, lấy chữ từ ảnh, gửi sang điện thoại. <span class='lab-intro-key'>Xong như phép thuật</span>, nhanh hơn cả lúc bạn đi tìm cái web convert đầy quảng cáo kia."><span class="lab-intro-key lab-intro-name">ROTAE</span> by <a href="https://www.nhaajt.com" target="_blank" rel="noopener">Nhaajt</a>. <span class="lab-intro-key">Drag a file</span>, <span class="lab-intro-key">hold Shift</span>, and a wheel of actions opens around it: convert, shrink, sign, OCR and share. <span class="lab-intro-key">Done like magic</span>, faster than you can find that one ad-stuffed converter website again.</p>
-      <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10 và 11. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift.">Free, for Windows 10 and 11. Everything runs on your PC and nothing is uploaded. Tip: start dragging first, then press Shift.</p>
+      <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10, 11 và Linux. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift (trên Linux còn có thể kéo tới dải sáng ở mép màn hình).">Free, for Windows 10, 11 and Linux. Everything runs on your computer and nothing is uploaded. Tip: start dragging first, then press Shift (on Linux you can also drag to the glowing strip at the screen edge).</p>
       <div class="g-top desk-only">
         <div class="g-cmd">
           <span aria-hidden="true">PS&gt;</span>
           <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
+        <div class="g-cmd">
+          <span aria-hidden="true">$</span>
+          <code class="cmdtext">curl -fsSL https://rotae.nhaajt.com/install.sh | sh</code>
+          <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
+        </div>
         <a id="download" class="g-top-link" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span> <span aria-hidden="true">↓</span></a>
       </div>
-      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="dán vào PowerShell hoặc Terminal, không cần quyền admin">paste into PowerShell or Terminal, no admin needed</span></p>
+      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="Windows: dán vào PowerShell, không cần quyền admin · Linux: dán vào Terminal (Ubuntu, Debian, Kali, Fedora…)">Windows: paste into PowerShell, no admin needed · Linux: paste into a terminal (Ubuntu, Debian, Kali, Fedora…)</span></p>
       <div class="on-phone">
-        <p data-vi="Rotae là app cho máy tính Windows. Gửi link sang máy tính để cài nhé:">Rotae is a Windows PC app. Send the link to your computer:</p>
+        <p data-vi="Rotae là app cho máy tính Windows và Linux. Gửi link sang máy tính để cài nhé:">Rotae is a computer app for Windows and Linux. Send the link to your computer:</p>
         <div class="row">
           <button id="shareLink" class="g-btn"><span data-vi="Gửi link">Send link</span></button>
           <button id="copyLink" class="g-btn is-quiet" data-vi="Chép link">Copy link</button>
@@ -191,16 +196,18 @@
         <details class="reveal"><summary data-vi="Sao Windows cảnh báo khi cài?">Why does Windows warn me?</summary>
         <p data-vi="App mới chưa có chứng chỉ ký code trả phí nên SmartScreen chưa quen. Chọn More info → Run anyway. Mã nguồn công khai trên GitHub.">It is a new app without a paid code-signing certificate, so SmartScreen hasn't met it yet. Choose More info → Run anyway. The source is public on GitHub.</p></details>
         <details class="reveal"><summary data-vi="Video và nhạc không chạy?">Video and audio don't work?</summary>
-        <p data-vi="Chúng cần tiện ích FFmpeg miễn phí: Cài đặt › Tiện ích thêm › Tải về. Một lần là xong.">They need the free FFmpeg add-on: Settings › Add-ons › Download. One time.</p></details>
+        <p data-vi="Chúng cần tiện ích FFmpeg miễn phí: Cài đặt › Tiện ích thêm › Tải về. Một lần là xong. Trên Linux, bộ cài tự cài FFmpeg (hoặc: sudo apt install ffmpeg).">They need the free FFmpeg add-on: Settings › Add-ons › Download. One time. On Linux the installer brings FFmpeg along (or: sudo apt install ffmpeg).</p></details>
+        <details class="reveal"><summary data-vi="Có bản cho Linux không?">Is there a Linux version?</summary>
+        <p data-vi="Có, cho Ubuntu, Debian, Kali, Fedora và các bản khác (x86-64): một dòng lệnh trong Terminal, hoặc gói .deb, .rpm, AppImage trên GitHub. Kéo file tới dải sáng ở mép màn hình, hoặc giữ Shift khi kéo trên X11. Bật Chế độ pentest trong Cài đặt để có thêm công cụ forensics, phân tích gói tin, recon và CTF, mỗi công cụ chạy trong sandbox.">Yes, for Ubuntu, Debian, Kali, Fedora and others (x86-64): one line in a terminal, or the .deb, .rpm and AppImage on GitHub. Drag a file to the glowing strip at the screen edge, or hold Shift while dragging on X11. Turn on Pentest user mode in Settings for forensics, capture analysis, recon and CTF tools, each running in a sandbox.</p></details>
         <details class="reveal"><summary data-vi="Có bản cho Mac không?">Is there a Mac version?</summary>
-        <p data-vi="Đang lên kế hoạch. Hiện tại là Windows 10 và 11.">Planned. For now it is Windows 10 and 11.</p></details>
+        <p data-vi="Đang lên kế hoạch. Hiện tại là Windows 10, 11 và Linux.">Planned. For now it is Windows 10, 11 and Linux.</p></details>
         <details class="reveal"><summary data-vi="App ở đâu sau khi cài?">Where is the app after installing?</summary>
         <p data-vi="Nó sống lặng lẽ dưới khay hệ thống (icon ⇄ cạnh đồng hồ). Không cần mở cửa sổ nào, cứ kéo file và giữ Shift.">It lives quietly in the system tray (the ⇄ icon by the clock). No window to keep open; just drag a file and hold Shift.</p></details>
       </div>
     </section>
 
     <section class="g-band reveal" id="install">
-      <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11">INSTALL · WINDOWS 10/11</p>
+      <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11 · LINUX">INSTALL · WINDOWS 10/11 · LINUX</p>
       <h2 class="g-title" data-vi="File của bạn đang chờ">Your files are waiting</h2>
       <div class="desk-only">
         <div class="g-cmd">
@@ -208,10 +215,16 @@
           <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
+        <div class="g-cmd">
+          <span aria-hidden="true">$</span>
+          <code class="cmdtext">curl -fsSL https://rotae.nhaajt.com/install.sh | sh</code>
+          <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
+        </div>
       </div>
       <button class="g-btn share-again on-phone-inline" data-vi="Gửi link sang máy tính">Send the link to my PC</button>
       <div class="g-two">
         <p><b data-vi="Một dòng trong PowerShell.">One line in PowerShell.</b> <span data-vi="Tải bộ cài từ GitHub Releases, kiểm tra SHA-256 rồi cài lặng lẽ, chỉ cho tài khoản của bạn. Chạy lại để cập nhật.">Downloads the installer from GitHub Releases, checks its SHA-256 and installs it quietly, for your user only. Run it again to update.</span> <a href="/install.ps1" data-vi="Đọc script trước">Read the script first</a></p>
+        <p><b data-vi="Linux: một dòng trong Terminal.">Linux: one line in a terminal.</b> <span data-vi="Chọn gói hợp với máy (.deb cho Ubuntu, Debian, Kali; .rpm cho Fedora; AppImage cho bản khác), kiểm tra SHA-256 rồi cài. Thêm --pentest để cài luôn công cụ cho Chế độ pentest trên Kali.">Picks the package that fits (.deb for Ubuntu, Debian and Kali, .rpm for Fedora, AppImage anywhere else), checks its SHA-256 and installs it. Add --pentest to also install the tools Pentest user mode uses on Kali.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
         <p><b data-vi="Hoặc bộ cài.">Or the installer.</b> <span data-vi="Chưa ký code nên Windows sẽ hỏi trước khi chạy: More info, rồi Run anyway.">It isn't signed yet, so Windows asks before running it: More info, then Run anyway.</span> <a class="dl" href="https://github.com/nhaajtt/rotae/releases/latest" data-vi="Tải .exe">Download .exe</a></p>
       </div>
       <p class="g-fine" data-vi="8 MB, một phút cài đặt, không đăng ký, không drama.">8 MB, a minute to install, no signup, no drama.</p>

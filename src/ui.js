@@ -14,6 +14,9 @@ export const h = (tag, props = {}, ...kids) => {
 };
 export const name = (p) => p.split(/[\\/]/).pop();
 
+/** Running on Linux (WebKitGTK); Windows uses WebView2. */
+export const LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+
 /** State the hub shares with feature panels (files is wired up by hub.js). */
 export const shared = { files: [], show: (_id) => {} };
 

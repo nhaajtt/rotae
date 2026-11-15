@@ -151,6 +151,14 @@ pub fn to_html(src: &Path) -> Result<String> {
     Ok(page(&stem(src), &body, &base))
 }
 
+/// A Chromium-based browser that prints HTML to PDF headless: Edge on Windows; Chromium, Chrome,
+/// Brave or Edge on Linux.
+#[cfg(not(windows))]
+fn edge() -> Option<PathBuf> {
+    ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().find_map(|n| crate::platform::which(n))
+}
+
+#[cfg(windows)]
 fn edge() -> Option<PathBuf> {
     ["ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"]
         .iter()
@@ -160,7 +168,7 @@ fn edge() -> Option<PathBuf> {
 }
 
 fn to_pdf(src: &Path) -> Result<PathBuf> {
-    let edge = edge().context("Microsoft Edge is needed to make PDFs from text")?;
+    let edge = edge().context(if cfg!(windows) { "Microsoft Edge is needed to make PDFs from text" } else { "making PDFs from text needs Chromium: sudo apt install chromium" })?;
     // HTML files print as they are but locked down (relative images keep working through the
     // base); everything else is wrapped first
     let doc: Vec<u8> = if matches!(ext(src).as_str(), "html" | "htm") {

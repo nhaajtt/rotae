@@ -14,19 +14,51 @@ const EXT = {
   exe: ['exe', 'dll', 'sys', 'ocx', 'scr', 'cpl', 'drv', 'efi', 'so', 'elf'],
   pcap: ['pcap', 'pcapng', 'cap'],
   office: ['doc', 'docx', 'docm', 'odt', 'rtf', 'xls', 'xlsx', 'xlsm', 'ods', 'ppt', 'pptx', 'odp'],
+  apk: ['apk', 'xapk', 'aab'],
 };
 
 // What this computer offers besides the built-in actions; filled by loadContext().
-export const ctx = { apps: [], sandbox: false, tools: new Set() };
+export const ctx = { apps: [], sandbox: false, tools: new Set(), pentest: null };
 
 export async function loadContext(invoke) {
-  const [apps, sandbox, tools] = await Promise.all([
+  const [apps, sandbox, tools, pentest] = await Promise.all([
     invoke('get_apps').catch(() => []),
     invoke('sandbox_ok').catch(() => false),
     invoke('tools_status').catch(() => []),
+    invoke('pentest_tools').catch(() => null),
   ]);
-  Object.assign(ctx, { apps, sandbox, tools: new Set(tools.filter((t) => t.installed).map((t) => t.id)) });
+  Object.assign(ctx, { apps, sandbox, tools: new Set(tools.filter((t) => t.installed).map((t) => t.id)), pentest });
   return ctx;
+}
+
+// --- Pentest user mode: installed tools for this kind of file ------------------------------
+
+/** Installed pentest tools offered for files of this kind (unknown files may be programs). */
+export function pentestTools(kind) {
+  const p = ctx.pentest;
+  if (!p?.on) return [];
+  const want = new Set([kind, 'any', ...(kind === 'other' ? ['exe'] : [])]);
+  return p.tools.filter((t) => t.installed && t.kinds.some((k) => want.has(k)));
+}
+
+const ptItem = (t) => ({
+  id: `pt-${t.id}`,
+  label: t.label,
+  glyph: t.glyph,
+  title: `Running ${t.label}`,
+  keywords: `pentest ${t.group} ${t.bins.join(' ')}`,
+  action: { op: 'pentest', tool: t.id },
+  // tools that need a word of authorization first go through the confirm view
+  ...(t.confirm ? { ask: [], danger: t.confirm } : {}),
+});
+
+/** One "Analyze" wedge with the first tools, the rest under More. */
+function addPentest(raw, kind) {
+  const pt = pentestTools(kind).map(ptItem);
+  if (!pt.length) return;
+  raw.items = [...raw.items];
+  raw.items.splice(1, 0, { id: 'analyze', label: 'Analyze', glyph: '⌖', keywords: 'pentest forensics security', sub: pt.slice(0, 9), def: 0 });
+  raw.extra = [...(raw.extra || []), ...pt.slice(9)];
 }
 
 export const extOf = (p) => (p.match(/\.([^.\\/]+)$/)?.[1] || '').toLowerCase();
@@ -472,6 +504,7 @@ export function menuFor(paths, apps = []) {
   const raw = buildMenu(paths, apps);
   const p = prefs();
   raw.extra = [...(raw.extra || []), ...ownActions(p, kind, paths)];
+  addPentest(raw, kind);
   const all = [...raw.items, ...(raw.extra || [])].map((it) => ({ ...it, id: idOf(it) }));
   const hidden = new Set(p.hidden?.[kind] || []);
   const score = (it) => p.usage?.[`${kind}:${it.id}`] || 0;
