@@ -19,6 +19,10 @@ fn zip_docx(docx: &Path, src: &Path) -> bool {
 
 /// Text to PDF needs a Chromium-based browser; Linux machines without one skip that step.
 fn pdf_printer() -> bool {
+    // CI images ship a Chrome whose own sandbox is blocked there (AppArmor); real desktops are fine
+    if std::env::var_os("ROTAE_SKIP_PDF_PRINT").is_some() {
+        return false;
+    }
     cfg!(windows) || ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().any(|n| crate::platform::which(n).is_some())
 }
 

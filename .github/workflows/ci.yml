@@ -94,6 +94,10 @@ jobs:
 
       - name: Engine tests
         working-directory: src-tauri
+        # the runner's Chrome can't start its own sandbox under Ubuntu's AppArmor rules, and the
+        # bubblewrap tests skip themselves there for the same reason
+        env:
+          ROTAE_SKIP_PDF_PRINT: '1'
         run: xvfb-run -a cargo test --lib --locked
 
   # RustSec advisories for every crate in Cargo.lock

@@ -188,11 +188,39 @@ fn to_pdf(src: &Path) -> Result<PathBuf> {
     } else {
         to_html(src)?.into_bytes()
     };
-    let html = temp_file("html");
+    let browser = edge.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "The browser".into());
+    // Chromium from a snap (Ubuntu) has a /tmp of its own and writes only inside its own folder:
+    // the page, its profile and the PDF go there, and the PDF is moved next to the file afterwards
+    let snap_dir = edge
+        .strip_prefix("/snap/bin")
+        .ok()
+        .and_then(|n| std::env::var_os("HOME").map(|h| PathBuf::from(h).join("snap").join(n).join("common").join("rotae-print")));
+    if let Some(d) = &snap_dir {
+        std::fs::create_dir_all(d)?;
+    }
+    let html = match &snap_dir {
+        Some(d) => {
+            let p = crate::naming::unique(d, &format!("page-{}", std::process::id()), "html");
+            crate::naming::claim(&p);
+            p
+        }
+        None => temp_file("html"),
+    };
     std::fs::write(&html, doc)?;
     let out = out_path(src, None, "pdf");
+    let printed = match &snap_dir {
+        Some(d) => {
+            let p = crate::naming::unique(d, "printed", "pdf");
+            crate::naming::claim(&p);
+            p
+        }
+        None => out.clone(),
+    };
     // a profile of its own, kept between jobs (they run one at a time), so it starts quickly
-    let profile = std::env::temp_dir().join("rotae").join("edge");
+    let profile = match &snap_dir {
+        Some(d) => d.join("profile"),
+        None => std::env::temp_dir().join("rotae").join("edge"),
+    };
     let mut cmd = Command::new(edge);
     // the page may be a stranger's HTML: with no network at all (no DNS, every request sent to
     // a dead proxy) printing it can't tell anyone the file was opened or leak what is in it
@@ -204,7 +232,7 @@ fn to_pdf(src: &Path) -> Result<PathBuf> {
         .arg("--disable-extensions")
         .arg("--no-pdf-header-footer")
         .arg(format!("--user-data-dir={}", profile.display()))
-        .arg(format!("--print-to-pdf={}", out.display()))
+        .arg(format!("--print-to-pdf={}", printed.display()))
         .arg(url(&html));
     #[cfg(windows)]
     {
@@ -213,9 +241,24 @@ fn to_pdf(src: &Path) -> Result<PathBuf> {
     }
     let r = super::tools::output_within(&mut cmd, std::time::Duration::from_secs(120));
     let _ = std::fs::remove_file(&html);
-    let status = r.context("Edge couldn't print the PDF")?.status;
-    if !status.success() || !out.is_file() {
-        bail!("Edge couldn't print the PDF");
+    let failed = || -> anyhow::Error {
+        // Chrome, Chromium and Edge refuse to start as root (their sandbox needs a normal user)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if std::fs::metadata("/proc/self").is_ok_and(|m| m.uid() == 0) {
+                return anyhow::anyhow!("{browser} won't run as root; start Rotae as your normal user to make PDFs from text");
+            }
+        }
+        anyhow::anyhow!("{browser} couldn't print the PDF")
+    };
+    let status = r.map_err(|_| failed())?.status;
+    if !status.success() || !printed.is_file() {
+        return Err(failed());
+    }
+    if printed != out && std::fs::rename(&printed, &out).is_err() {
+        std::fs::copy(&printed, &out)?;
+        let _ = std::fs::remove_file(&printed);
     }
     Ok(out)
 }

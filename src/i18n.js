@@ -277,6 +277,16 @@ const VI = {
   'Pentest tools only run while Pentest user mode is on.': 'Công cụ pentest chỉ chạy khi chế độ pentest đang bật.',
   'Turn it on in Settings › Pentest user mode.': 'Bật trong Cài đặt › Chế độ pentest.',
   'Reduce transparency': 'Giảm trong suốt', 'Solid panels instead of glass: easier to read and lighter on slow graphics.': 'Dùng nền đặc thay cho kính: dễ đọc hơn và nhẹ hơn cho máy yếu.',
+  'The sandbox can’t start on this system, so no tool will run.': 'Sandbox không chạy được trên máy này nên công cụ sẽ không chạy.', blocked: 'bị chặn',
+  'Ubuntu blocks the sandbox': 'Ubuntu chặn sandbox',
+  'Ubuntu 24.04 and newer stop programs from making the private spaces (user namespaces) the sandbox is built from. Kali and Debian don’t, so there nothing is needed.': 'Ubuntu 24.04 trở lên chặn chương trình tạo các không gian riêng (user namespace) mà sandbox cần. Kali và Debian không chặn nên không cần làm gì.',
+  'To allow them again for every program, as before Ubuntu 24.04, run this once. It undoes a protection Ubuntu added, so do it only on a computer you use for testing:': 'Để cho phép lại cho mọi chương trình như trước Ubuntu 24.04, chạy lệnh này một lần. Lệnh này bỏ một lớp bảo vệ Ubuntu thêm vào, nên chỉ làm trên máy dùng để kiểm thử:',
+  'Ubuntu 24.04 and newer block the private spaces the pentest sandbox needs. Kali and Debian don’t.': 'Ubuntu 24.04 trở lên chặn các không gian riêng mà sandbox pentest cần. Kali và Debian không chặn.',
+  'Settings › Pentest user mode explains the one command that allows them again (only on a computer you use for testing).': 'Cài đặt › Chế độ pentest có lệnh cho phép lại (chỉ nên làm trên máy dùng để kiểm thử).',
+  'Chrome, Chromium and Edge refuse to run as root, so they can’t print the PDF.': 'Chrome, Chromium và Edge không chạy bằng root nên không in được PDF.',
+  'Start Rotae as your normal user (not with sudo), then try again.': 'Mở Rotae bằng tài khoản thường (không dùng sudo) rồi thử lại.',
+  'The browser that turns text into PDF stopped without making one.': 'Trình duyệt dùng để chuyển chữ sang PDF đã dừng mà không tạo được file.',
+  'Open the browser once to finish its setup, then try again.': 'Mở trình duyệt một lần để hoàn tất thiết lập rồi thử lại.',
 };
 
 // Titles with numbers or names in them.
