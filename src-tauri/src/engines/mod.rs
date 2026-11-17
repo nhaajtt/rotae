@@ -125,6 +125,9 @@ pub enum Action {
         #[serde(default)]
         confirmed: bool,
     },
+    /// Work done through Apple's frameworks or plain text tools; only exists in the Mac build.
+    #[cfg(target_os = "macos")]
+    Native { verb: String, #[serde(default)] arg: String },
 }
 
 thread_local! {
@@ -143,6 +146,10 @@ pub fn take_notes() -> Vec<String> {
 
 /// Actions that treat the whole selection as one unit.
 pub fn is_group(a: &Action) -> bool {
+    #[cfg(target_os = "macos")]
+    if let Action::Native { verb, arg } = a {
+        return crate::desk::is_group(verb, arg);
+    }
     files::is_group(a) || matches!(a, Action::Merge | Action::Diff | Action::Shred | Action::Slideshow { .. } | Action::ContactSheet) || matches!(a, Action::Hashes { algo } if algo != "all")
 }
 
@@ -177,6 +184,10 @@ pub fn run(paths: &[PathBuf], action: &Action, progress: Progress) -> Result<Vec
     if kind(&paths[0]) == Kind::Pdf && pdfx::handles(action) {
         return pdfx::run(&paths[0], action, progress);
     }
+    #[cfg(target_os = "macos")]
+    if let Some(r) = crate::native::run(paths, action) {
+        return r;
+    }
     if ai::handles(action) {
         return ai::run(paths, action, progress);
     }
@@ -205,7 +216,14 @@ fn chain(paths: &[PathBuf], steps: &[Action], progress: Progress) -> Result<Vec<
         let units: Vec<Vec<PathBuf>> = if is_group(step) { vec![cur.clone()] } else { cur.iter().map(|p| vec![p.clone()]).collect() };
         let mut next = Vec::new();
         for u in units {
-            next.extend(run(&u, step, &|p| progress((k as f32 + p) / n))?);
+            let r = run(&u, step, &|p| progress((k as f32 + p) / n));
+            // "there was nothing to do" must not sink a recipe: the file goes on as it is
+            #[cfg(target_os = "macos")]
+            let r = match r {
+                Err(e) if k > 0 && crate::errors::code(&e.to_string()) == "already_small" => Ok(u.clone()),
+                o => o,
+            };
+            next.extend(r?);
         }
         // steps that only copy or report (hash, copy path…) pass their input on
         if next.is_empty() {
@@ -232,11 +250,13 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
         bail!("this file name has characters (& | < > ^ %) that are unsafe in a command line; rename it first");
     }
     // sh expands $(…), `…` and \ even inside double quotes
-    #[cfg(not(windows))]
+    #[cfg(all(unix, not(target_os = "macos")))]
     if src.to_string_lossy().contains(['&', '|', '<', '>', ';', '$', '`', '\\', '"', '\'', '\n', '\r']) {
         bail!("this file name has characters ($ ` \\ ; & | < > or quotes) that are unsafe in a command line; rename it first");
     }
+    #[cfg_attr(target_os = "macos", allow(unused))]
     let q = |s: &str| format!("\"{s}\"");
+    #[cfg_attr(target_os = "macos", allow(unused))]
     let line = command
         .replace("{file}", &q(&src.display().to_string()))
         .replace("{dir}", &q(&dir.display().to_string()))
@@ -249,7 +269,14 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
         use std::os::windows::process::CommandExt;
         tools::output_within_unowned(tools::quiet(std::path::Path::new("cmd")).arg("/D").arg("/C").raw_arg(&line).current_dir(&dir), std::time::Duration::from_secs(3600))?
     };
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    let o = {
+        // values travel as environment variables, so a file name can never become shell code
+        let line = shell_template(command);
+        let n = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        tools::output_within_unowned(std::process::Command::new("/bin/sh").arg("-c").arg(line).current_dir(&dir).env("SD_FILE", src).env("SD_DIR", &dir).env("SD_NAME", n).env("SD_STEM", stem(src)).env("SD_EXT", ext(src)), std::time::Duration::from_secs(3600))?
+    };
+    #[cfg(all(not(windows), not(target_os = "macos")))]
     let o = tools::output_within_unowned(std::process::Command::new("sh").arg("-c").arg(&line).current_dir(&dir), std::time::Duration::from_secs(3600))?;
     if !o.status.success() {
         let err = String::from_utf8_lossy(&o.stderr);
@@ -260,6 +287,44 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
     }
     // whatever appeared in the folder counts as the result
     Ok(std::fs::read_dir(&dir).map(|r| r.flatten().map(|e| e.path()).filter(|p| !before.contains(p)).collect()).unwrap_or_default())
+}
+
+/// Turns {file} and friends into shell variables, quoted correctly for where each one sits, so
+/// the value is always one word and never read as shell code.
+#[cfg(target_os = "macos")]
+pub(crate) fn shell_template(command: &str) -> String {
+    const VARS: [(&str, &str); 5] = [("{file}", "SD_FILE"), ("{dir}", "SD_DIR"), ("{name}", "SD_NAME"), ("{stem}", "SD_STEM"), ("{ext}", "SD_EXT")];
+    let (mut out, mut rest, mut quote) = (String::new(), command, None::<char>);
+    'scan: while let Some(c) = rest.chars().next() {
+        for (token, var) in VARS {
+            if rest.starts_with(token) {
+                match quote {
+                    Some('"') => out += &format!("${{{var}}}"),
+                    Some(_) => out += &format!("'\"${{{var}}}\"'"),
+                    None => out += &format!("\"${{{var}}}\""),
+                }
+                rest = &rest[token.len()..];
+                continue 'scan;
+            }
+        }
+        match (c, quote) {
+            ('\\', q) if q != Some('\'') => {
+                let mut it = rest.chars();
+                out.push(it.next().unwrap_or(c));
+                if let Some(n) = it.next() {
+                    out.push(n);
+                }
+                rest = it.as_str();
+                continue;
+            }
+            ('"' | '\'', None) => quote = Some(c),
+            (_, Some(q)) if c == q => quote = None,
+            _ => {}
+        }
+        out.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    out
 }
 
 fn merge(paths: &[PathBuf], progress: Progress) -> Result<Vec<PathBuf>> {

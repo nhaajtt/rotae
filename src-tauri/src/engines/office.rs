@@ -63,7 +63,7 @@ fn convert(src: &Path, out: &Path, to: &str) -> Result<()> {
     // a profile of our own, so a LibreOffice the user has open doesn't swallow the request. Jobs
     // run one at a time, so it is kept between them (a new one costs seconds to set up each time)
     let profile = std::env::temp_dir().join("rotae").join("lo-profile");
-    let profile_url = format!("-env:UserInstallation=file:///{}", profile.display().to_string().replace('\\', "/").replace(' ', "%20"));
+    let profile_url = format!("-env:UserInstallation=file://{}{}", if cfg!(windows) { "/" } else { "" }, profile.display().to_string().replace('\\', "/").replace(' ', "%20"));
     let o = super::tools::output_within(
         super::tools::quiet(soffice).arg(profile_url).args(["--headless", "--norestore", "--nologo", "--convert-to", filter, "--outdir"]).arg(&dir).arg(src),
         LIMIT,
@@ -87,7 +87,9 @@ fn convert(src: &Path, out: &Path, to: &str) -> Result<()> {
 fn libreoffice() -> Option<&'static Path> {
     static P: OnceLock<Option<PathBuf>> = OnceLock::new();
     P.get_or_init(|| {
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        return Some(PathBuf::from("/Applications/LibreOffice.app/Contents/MacOS/soffice")).filter(|p| p.is_file());
+        #[cfg(all(unix, not(target_os = "macos")))]
         return ["soffice", "libreoffice"].iter().find_map(|n| crate::platform::which(n));
         #[cfg(windows)]
         ["ProgramFiles", "ProgramFiles(x86)"]
@@ -101,6 +103,9 @@ fn libreoffice() -> Option<&'static Path> {
 
 /// Which Office app opens this file, if that app is installed.
 fn ms_office_app(src: &Path) -> Option<&'static str> {
+    if cfg!(target_os = "macos") {
+        return None;
+    }
     let app = match ext(src).as_str() {
         "xls" | "xlsx" | "xlsm" | "ods" => "Excel",
         "ppt" | "pptx" | "odp" => "PowerPoint",

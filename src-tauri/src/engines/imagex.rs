@@ -44,9 +44,9 @@ fn ellipsis(s: &str, n: usize) -> String {
 /// A PNG copy small enough for Windows OCR (or the file itself when it already fits).
 fn ocr_ready(src: &Path) -> Result<(PathBuf, bool)> {
     let Ok(img) = open(src) else { return Ok((src.to_path_buf(), false)) };
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     let max = crate::winrt::ocr_max_side();
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     let max = 4096;
     let (w, h) = img.dimensions();
     // small text reads better when enlarged a little
@@ -77,7 +77,7 @@ fn tesseract(file: &Path) -> Result<String> {
 }
 
 pub fn ocr_text(src: &Path) -> Result<String> {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     {
         let (file, temp) = ocr_ready(src)?;
         let r = crate::winrt::ocr(&file);
@@ -86,7 +86,7 @@ pub fn ocr_text(src: &Path) -> Result<String> {
         }
         r
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let (file, temp) = ocr_ready(src)?;
         let r = tesseract(&file);

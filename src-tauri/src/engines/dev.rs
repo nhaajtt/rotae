@@ -82,7 +82,7 @@ pub fn path_as(p: &Path, style: &str) -> String {
                     _ => format!("%{b:02X}"),
                 })
                 .collect();
-            format!("file:///{enc}")
+            if cfg!(target_os = "macos") { format!("file://{enc}") } else { format!("file:///{enc}") }
         }
         "markdown" => {
             let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();

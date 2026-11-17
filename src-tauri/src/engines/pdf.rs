@@ -16,7 +16,7 @@ pub fn pdfium() -> Result<&'static Pdfium> {
     }
     let dir = tools::bin_dir().ok_or_else(|| anyhow!("PDF engine not found"))?;
     let bindings = Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(dir))
-        .or_else(|_| Pdfium::bind_to_system_library())
+        .or_else(|e| if cfg!(target_os = "macos") { Err(e) } else { Pdfium::bind_to_system_library() })
         .map_err(|e| anyhow!("PDF engine (pdfium) missing: {e}"))?;
     Ok(PDFIUM.get_or_init(|| Pdfium::new(bindings)))
 }

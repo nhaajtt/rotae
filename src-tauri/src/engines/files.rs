@@ -69,8 +69,15 @@ pub(crate) fn tar_member(name: &str) -> String {
     if name.starts_with(['-', '@']) { format!("./{name}") } else { name.to_string() }
 }
 
-/// bsdtar (zip, tar, gz, xz, bz2, 7z, rar): Windows ships it in System32, Linux has it in
-/// libarchive-tools. GNU tar and Git's tar can't write zips.
+/// bsdtar (zip, tar, gz, xz, bz2, 7z, rar): Windows ships it in System32, macOS in /usr/bin,
+/// Linux has it in libarchive-tools. GNU tar and Git's tar can't write zips.
+#[cfg(target_os = "macos")]
+fn tar() -> Command {
+    let mut cmd = Command::new("/usr/bin/tar");
+    cmd.env("COPYFILE_DISABLE", "1"); // no ._ AppleDouble files inside archives
+    cmd
+}
+
 #[cfg(windows)]
 fn tar() -> Command {
     use std::os::windows::process::CommandExt;
@@ -80,7 +87,7 @@ fn tar() -> Command {
     cmd
 }
 
-#[cfg(not(windows))]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn tar() -> Command {
     Command::new("bsdtar")
 }
@@ -123,11 +130,16 @@ fn extract(src: &Path) -> Result<PathBuf> {
         let _ = std::fs::remove_dir_all(&out);
         return Err(e);
     }
+    // what comes out of a downloaded archive must stay "downloaded" for Gatekeeper
+    #[cfg(target_os = "macos")]
+    crate::native::carry_quarantine(src, &out);
     Ok(out)
 }
 
 /// Extracts any archive Windows' tar understands into `dir`.
 pub fn untar(src: &Path, dir: &Path) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    crate::native::check_archive(src, dir)?;
     let o = super::tools::output_within(tar().arg("-x").arg("-f").arg(src).arg("-C").arg(dir), std::time::Duration::from_secs(1800))?;
     if !o.status.success() {
         bail!("can't extract: {}", String::from_utf8_lossy(&o.stderr).trim());

@@ -47,6 +47,7 @@ fn command(name: &str) -> Command {
 /// A command for any program, without a console window popping up.
 #[allow(unused_mut)]
 pub fn quiet(program: &Path) -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut c = Command::new(program);
     #[cfg(windows)]
     {
@@ -94,13 +95,20 @@ pub fn video_size(file: &Path) -> Option<(u32, u32)> {
 }
 
 /// Ends a program and everything it started (Office, Edge and LibreOffice spawn helpers).
+/// macOS: the program and its direct children (there is no /proc to walk).
+#[cfg(target_os = "macos")]
+pub fn kill_tree(pid: u32) {
+    let _ = Command::new("/usr/bin/pkill").args(["-9", "-P", &pid.to_string()]).output();
+    unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+}
+
 #[cfg(windows)]
 pub fn kill_tree(pid: u32) {
     let _ = quiet(Path::new("taskkill")).args(["/F", "/T", "/PID", &pid.to_string()]).output();
 }
 
 /// Linux: the program and its descendants, found through /proc parent ids.
-#[cfg(not(windows))]
+#[cfg(all(unix, not(target_os = "macos")))]
 pub fn kill_tree(pid: u32) {
     let mut parents: Vec<(u32, u32)> = Vec::new();
     if let Ok(rd) = std::fs::read_dir("/proc") {

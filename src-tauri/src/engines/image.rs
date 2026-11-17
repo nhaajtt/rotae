@@ -32,7 +32,7 @@ pub fn open(path: &Path) -> Result<DynamicImage> {
         Ok(img) => Ok(img),
         Err(_) => {
             // HEIC, camera RAW…: Windows' own codecs first, then ffmpeg
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             if let Ok(png) = crate::winrt::decode_to_png(path) {
                 return Ok(image::load_from_memory(&png)?);
             }

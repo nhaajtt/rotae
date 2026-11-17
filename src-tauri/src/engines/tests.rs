@@ -208,6 +208,7 @@ fn security_and_dev() {
     std::fs::write(&b64, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==").unwrap();
     let png = check(&[b64], Action::Base64 { decode: true });
     assert!(png[0].extension().unwrap() == "png");
+    #[cfg(not(target_os = "macos"))]
     assert_eq!(super::dev::path_as(Path::new(r"C:\Users\me\a b.txt"), "wsl"), "/mnt/c/Users/me/a b.txt");
 
     let yaml = d.join("conf.yaml");
@@ -373,6 +374,8 @@ fn failed_unit_leaves_no_partial_output() {
     assert!(!out.exists() && !dir.exists() && src.exists());
 }
 
+// relies on a name Windows refuses; the Mac app renames in Swift
+#[cfg_attr(target_os = "macos", ignore)]
 #[test]
 fn rename_puts_everything_back_when_one_fails() {
     let d = workdir("rename");
@@ -605,4 +608,13 @@ fn xml_entities_keep_the_spaces_around_them() {
     assert_eq!(v["a"]["b"], "Tom & Jerry ét<>");
     assert_eq!(v["a"]["@x"], "1 & 2");
     assert_eq!(v["a"]["c"], "raw <x>");
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn file_names_stay_one_shell_word_wherever_the_placeholder_sits() {
+    use super::shell_template as t;
+    assert_eq!(t("cp {file} x"), "cp \"${SD_FILE}\" x");
+    assert_eq!(t("cp {file} \"{stem} copy.{ext}\""), "cp \"${SD_FILE}\" \"${SD_STEM} copy.${SD_EXT}\"");
+    assert_eq!(t("echo '{name}'"), "echo ''\"${SD_NAME}\"''");
 }

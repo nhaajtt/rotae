@@ -18,6 +18,24 @@ pub fn out_path(src: &Path, suffix: Option<&str>, ext: &str) -> PathBuf {
     unique(dir, &base, ext)
 }
 
+#[cfg(target_os = "macos")]
+pub fn unique(dir: &Path, base: &str, ext: &str) -> PathBuf {
+    // jobs run side by side here: taking the name and creating the file must be one step
+    let mut n = 1;
+    loop {
+        let tail = if ext.is_empty() { String::new() } else { format!(".{ext}") };
+        let p = if n == 1 { dir.join(format!("{base}{tail}")) } else { dir.join(format!("{base} ({n}){tail}")) };
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&p) {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
+            _ => {
+                claim(&p);
+                return p;
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
 pub fn unique(dir: &Path, base: &str, ext: &str) -> PathBuf {
     let mut p = dir.join(format!("{base}.{ext}"));
     let mut n = 2;
@@ -42,6 +60,8 @@ fn running() -> std::sync::MutexGuard<'static, Vec<(std::thread::ThreadId, Vec<P
 }
 
 pub fn claim(p: &Path) {
+    #[cfg(target_os = "macos")]
+    crate::proto::claimed(p);
     CLAIMED.with(|c| {
         let mut c = c.borrow_mut();
         // threads outside the job queue never call begin(); don't let their list grow forever
@@ -116,6 +136,22 @@ pub fn finish() {
 pub fn out_dir(src: &Path, suffix: &str) -> std::io::Result<PathBuf> {
     let dir = src.parent().unwrap_or_else(|| Path::new("."));
     let base = format!("{} {}", stem(src), suffix);
+    #[cfg(target_os = "macos")]
+    {
+        let mut n = 1;
+        loop {
+            let p = if n == 1 { dir.join(&base) } else { dir.join(format!("{base} ({n})")) };
+            match std::fs::create_dir(&p) {
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
+                Err(e) => return Err(e),
+                Ok(()) => {
+                    claim(&p);
+                    return Ok(p);
+                }
+            }
+        }
+    }
+    #[allow(unreachable_code)]
     let mut p = dir.join(&base);
     let mut n = 2;
     while p.exists() {
