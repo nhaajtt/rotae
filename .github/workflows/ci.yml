@@ -100,6 +100,42 @@ jobs:
           ROTAE_SKIP_PDF_PRINT: '1'
         run: xvfb-run -a cargo test --lib --locked
 
+  # macos-14 proves the app still builds where there is no Liquid Glass (older Xcode, drawn
+  # look); macos-26 builds what ships.
+  mac-engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - run: brew install ffmpeg
+      - run: mac/scripts/fetch-pdfium.sh
+      - run: swift build -c release
+        working-directory: mac
+      - run: .build/release/sd-selftest
+        working-directory: mac
+      - run: rustup component add clippy
+      - run: cargo clippy --all-targets --locked -- -D warnings
+        working-directory: mac/engine
+      - run: SD_NATIVE="$PWD/../.build/release/sd-native" cargo test --locked
+        working-directory: mac/engine
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
+        working-directory: mac/engine
+      - name: Build the app bundle
+        run: mac/scripts/build-app.sh
+      - name: The shipping build has the current design, icon and Shortcuts actions
+        if: matrix.os == 'macos-26'
+        run: |
+          A=mac/build/Rotae.app/Contents
+          sdk="$(xcrun vtool -show-build "$A/MacOS/Rotae" | awk '/sdk/{print int($2)}')"
+          [ "$sdk" -ge 26 ]
+          [ -f "$A/Resources/Assets.car" ]
+          [ -f "$A/Resources/Metadata.appintents/extract.actionsdata" ]
+
   # RustSec advisories for every crate in Cargo.lock
   audit:
     runs-on: ubuntu-latest

@@ -1,0 +1,4 @@
+.build/
+build/
+engine/target/
+engine/resources/bin/*

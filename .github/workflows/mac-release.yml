@@ -1,0 +1,74 @@
+# Adds the Mac build to a release: by itself when a release is published, or by hand
+# (Actions › mac release › Run workflow) for a release that already exists.
+# website/install.sh fetches Rotae-mac-arm64.zip from the latest release, so the names stay fixed.
+# With the Apple secrets set the DMG is signed and notarized; without them it is ad-hoc signed,
+# which only matters for the DMG: macOS warns about downloads from a browser, not about the
+# zip the install script fetches with curl.
+name: mac release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release to add the Mac build to (e.g. v1.2.0), built from the branch picked above
+        required: true
+permissions:
+  contents: read
+jobs:
+  release:
+    # Xcode 26 or later: real Liquid Glass, the layered icon and Shortcuts actions need its SDK
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Import signing certificate
+        env:
+          CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          NOTARY_ID: ${{ secrets.MAC_NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MAC_NOTARY_PASSWORD }}
+          NOTARY_TEAM: ${{ secrets.MAC_NOTARY_TEAM }}
+          SIGN_NAME: ${{ secrets.MAC_SIGN_IDENTITY }}
+        run: |
+          [ -n "$CERT_P12" ] || exit 0
+          KC="$RUNNER_TEMP/build.keychain-db"
+          KP="$(uuidgen)"
+          security create-keychain -p "$KP" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KP" "$KC"
+          printf '%s' "$CERT_P12" | base64 -d > "$RUNNER_TEMP/c.p12"
+          security import "$RUNNER_TEMP/c.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/c.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC"
+          xcrun notarytool store-credentials sd --apple-id "$NOTARY_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM" --keychain "$KC"
+          { echo "SIGN_IDENTITY=$SIGN_NAME"; echo "NOTARY_PROFILE=sd"; } >> "$GITHUB_ENV"
+      - name: Version from the release tag
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          V="${TAG#v}"
+          echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "tag $TAG is not vX.Y.Z"; exit 1; }
+          plutil -replace CFBundleShortVersionString -string "$V" mac/Resources/Info.plist
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - run: mac/scripts/build-app.sh
+      - name: Refuse to ship a build without the current design
+        run: |
+          A=mac/build/Rotae.app/Contents
+          sdk="$(xcrun vtool -show-build "$A/MacOS/Rotae" | awk '/sdk/{print int($2)}')"
+          [ "$sdk" -ge 26 ]
+          [ -f "$A/Resources/Assets.car" ]
+          [ -f "$A/Resources/Metadata.appintents/extract.actionsdata" ]
+      - run: mac/scripts/dmg.sh
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd mac/build
+          ditto -c -k --keepParent Rotae.app Rotae-mac-arm64.zip
+          mv Rotae.dmg Rotae-mac-arm64.dmg
+          for f in Rotae-mac-arm64.zip Rotae-mac-arm64.dmg; do shasum -a 256 "$f" > "$f.sha256"; done
+          gh release upload "$TAG" Rotae-mac-arm64.zip Rotae-mac-arm64.zip.sha256 Rotae-mac-arm64.dmg Rotae-mac-arm64.dmg.sha256 --clobber

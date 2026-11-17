@@ -1,0 +1,47 @@
+[package]
+name = "sd-engine"
+version = "2.0.0"
+edition = "2021"
+
+# Not part of any workspace: the Windows app must keep building exactly as before.
+[workspace]
+
+[[bin]]
+name = "sd-engine"
+path = "src/main.rs"
+
+[dependencies]
+# Stand-in that satisfies `#[tauri::command]` in the shared engine sources.
+tauri = { path = "stub/tauri" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+anyhow = "1"
+image = "0.25"
+moxcms = "0.8"
+webp = "0.3"
+base64 = "0.22"
+sha2 = "0.10"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+oxipng = { version = "9", default-features = false, features = ["parallel"] }
+pdfium-render = "0.9"
+md-5 = "0.10"
+sha1 = "0.10"
+infer = "0.19"
+flate2 = "1"
+age = "0.11"
+serde_yaml = "0.9"
+toml = { version = "0.8", features = ["preserve_order"] }
+quick-xml = "0.42"
+similar = "2"
+qrcode = { version = "0.14", default-features = false, features = ["image", "svg"] }
+rqrr = "0.9"
+vtracer = "0.6"
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["load-dynamic", "std"] }
+getrandom = "0.3"
+libc = "0.2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
