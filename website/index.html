@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Rotae: drag a file, hold Shift, done</title>
-<meta name="description" content="Drag any file and hold Shift: a wheel of actions opens around it. Convert, shrink videos to 8 MB, sign PDFs, copy text from scans, catch fake files, send to your phone. Free and offline, for Windows and Linux." />
+<meta name="description" content="Drag any file and hold Shift: a wheel of actions opens around it. Convert, shrink videos to 8 MB, sign PDFs, copy text from scans, catch fake files, send to your phone. Free and offline, for Windows, Mac and Linux." />
 <meta property="og:title" content="Rotae" />
-<meta property="og:description" content="Drag a file, hold Shift, done. Free and offline, for Windows and Linux." />
+<meta property="og:description" content="Drag a file, hold Shift, done. Free and offline, for Windows, Mac and Linux." />
 <meta property="og:image" content="/media/intro-poster.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="theme-color" content="#0b0d14" />
@@ -35,7 +35,7 @@
     <div class="lab-intro-main">
       <h1 class="sr-only" id="intro-heading" data-vi="Rotae: kéo file, giữ Shift, xong">Rotae: drag a file, hold Shift, done</h1>
       <p class="lab-intro-lede" data-words data-vi="<span class='lab-intro-key lab-intro-name'>ROTAE</span> của <a href='https://www.nhaajt.com' target='_blank' rel='noopener'>Nhaajt</a>. <span class='lab-intro-key'>Kéo một file</span>, <span class='lab-intro-key'>giữ Shift</span>, và một vòng tròn thao tác mở ra quanh nó: đổi định dạng, nén video, ký PDF, lấy chữ từ ảnh, gửi sang điện thoại. <span class='lab-intro-key'>Xong như phép thuật</span>, nhanh hơn cả lúc bạn đi tìm cái web convert đầy quảng cáo kia."><span class="lab-intro-key lab-intro-name">ROTAE</span> by <a href="https://www.nhaajt.com" target="_blank" rel="noopener">Nhaajt</a>. <span class="lab-intro-key">Drag a file</span>, <span class="lab-intro-key">hold Shift</span>, and a wheel of actions opens around it: convert, shrink, sign, OCR and share. <span class="lab-intro-key">Done like magic</span>, faster than you can find that one ad-stuffed converter website again.</p>
-      <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10, 11 và Linux. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift (trên Linux còn có thể kéo tới dải sáng ở mép màn hình).">Free, for Windows 10, 11 and Linux. Everything runs on your computer and nothing is uploaded. Tip: start dragging first, then press Shift (on Linux you can also drag to the glowing strip at the screen edge).</p>
+      <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10, 11, Mac và Linux. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift (trên Mac: nhấn vào file, giữ Shift rồi kéo; trên Linux còn có thể kéo tới dải sáng ở mép màn hình).">Free, for Windows 10, 11, Mac and Linux. Everything runs on your computer and nothing is uploaded. Tip: start dragging first, then press Shift (on a Mac: press on the file, hold Shift, then drag; on Linux you can also drag to the glowing strip at the screen edge).</p>
       <div class="g-top desk-only">
         <div class="g-cmd">
           <span aria-hidden="true">PS&gt;</span>
@@ -49,9 +49,9 @@
         </div>
         <a id="download" class="g-top-link" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span> <span aria-hidden="true">↓</span></a>
       </div>
-      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="Windows: dán vào PowerShell, không cần quyền admin · Linux: dán vào Terminal (Ubuntu, Debian, Kali, Fedora…)">Windows: paste into PowerShell, no admin needed · Linux: paste into a terminal (Ubuntu, Debian, Kali, Fedora…)</span></p>
+      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="Windows: dán vào PowerShell, không cần quyền admin · Mac và Linux: dán vào Terminal">Windows: paste into PowerShell, no admin needed · Mac and Linux: paste into Terminal</span></p>
       <div class="on-phone">
-        <p data-vi="Rotae là app cho máy tính Windows và Linux. Gửi link sang máy tính để cài nhé:">Rotae is a computer app for Windows and Linux. Send the link to your computer:</p>
+        <p data-vi="Rotae là app cho máy tính Windows, Mac và Linux. Gửi link sang máy tính để cài nhé:">Rotae is a computer app for Windows, Mac and Linux. Send the link to your computer:</p>
         <div class="row">
           <button id="shareLink" class="g-btn"><span data-vi="Gửi link">Send link</span></button>
           <button id="copyLink" class="g-btn is-quiet" data-vi="Chép link">Copy link</button>
@@ -146,7 +146,7 @@
       </article>
       <div class="garage-cell garage-cell--soon">
         <span class="garage-slot-num">09</span><span class="garage-slot-rule" aria-hidden="true"></span>
-        <p class="garage-slot-text" data-vi="macOS · sắp có">macOS · coming</p>
+        <p class="garage-slot-text" data-vi="macOS · đã có">macOS · here</p>
       </div>
     </div>
 
@@ -200,14 +200,14 @@
         <details class="reveal"><summary data-vi="Có bản cho Linux không?">Is there a Linux version?</summary>
         <p data-vi="Có, cho Ubuntu, Debian, Kali, Fedora và các bản khác (x86-64): một dòng lệnh trong Terminal, hoặc gói .deb, .rpm, AppImage trên GitHub. Kéo file tới dải sáng ở mép màn hình, hoặc giữ Shift khi kéo trên X11. Bật Chế độ pentest trong Cài đặt để có thêm công cụ forensics, phân tích gói tin, recon và CTF, mỗi công cụ chạy trong sandbox.">Yes, for Ubuntu, Debian, Kali, Fedora and others (x86-64): one line in a terminal, or the .deb, .rpm and AppImage on GitHub. Drag a file to the glowing strip at the screen edge, or hold Shift while dragging on X11. Turn on Pentest user mode in Settings for forensics, capture analysis, recon and CTF tools, each running in a sandbox.</p></details>
         <details class="reveal"><summary data-vi="Có bản cho Mac không?">Is there a Mac version?</summary>
-        <p data-vi="Đang lên kế hoạch. Hiện tại là Windows 10, 11 và Linux.">Planned. For now it is Windows 10, 11 and Linux.</p></details>
+        <p data-vi="Có, cho Mac chip Apple (M1 trở lên) với macOS 14 trở lên: dán cùng dòng lệnh curl ở trên vào Terminal. Không có cảnh báo &quot;nhà phát triển không xác định&quot;, vì macOS chỉ kiểm tra file tải bằng trình duyệt; script tự kiểm tra SHA-256 và chữ ký thay cho bước đó. Nhấn vào file trong Finder, giữ Shift rồi kéo lên vòng tròn. Bản Mac còn tóm tắt, dịch và che thông tin riêng bằng AI ngay trên máy.">Yes, for Apple silicon Macs (M1 or later) on macOS 14 or later: paste the same curl line into Terminal. No &quot;unidentified developer&quot; prompt, since macOS only checks files a browser downloaded; the script checks the SHA-256 and signature instead. Press on a file in Finder, hold Shift and drag onto the wheel. The Mac version can also summarize, translate and hide private details with on-device AI.</p></details>
         <details class="reveal"><summary data-vi="App ở đâu sau khi cài?">Where is the app after installing?</summary>
         <p data-vi="Nó sống lặng lẽ dưới khay hệ thống (icon ⇄ cạnh đồng hồ). Không cần mở cửa sổ nào, cứ kéo file và giữ Shift.">It lives quietly in the system tray (the ⇄ icon by the clock). No window to keep open; just drag a file and hold Shift.</p></details>
       </div>
     </section>
 
     <section class="g-band reveal" id="install">
-      <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11 · LINUX">INSTALL · WINDOWS 10/11 · LINUX</p>
+      <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11 · MAC · LINUX">INSTALL · WINDOWS 10/11 · MAC · LINUX</p>
       <h2 class="g-title" data-vi="File của bạn đang chờ">Your files are waiting</h2>
       <div class="desk-only">
         <div class="g-cmd">
@@ -224,7 +224,7 @@
       <button class="g-btn share-again on-phone-inline" data-vi="Gửi link sang máy tính">Send the link to my PC</button>
       <div class="g-two">
         <p><b data-vi="Một dòng trong PowerShell.">One line in PowerShell.</b> <span data-vi="Tải bộ cài từ GitHub Releases, kiểm tra SHA-256 rồi cài lặng lẽ, chỉ cho tài khoản của bạn. Chạy lại để cập nhật.">Downloads the installer from GitHub Releases, checks its SHA-256 and installs it quietly, for your user only. Run it again to update.</span> <a href="/install.ps1" data-vi="Đọc script trước">Read the script first</a></p>
-        <p><b data-vi="Linux: một dòng trong Terminal.">Linux: one line in a terminal.</b> <span data-vi="Chọn gói hợp với máy (.deb cho Ubuntu, Debian, Kali; .rpm cho Fedora; AppImage cho bản khác), kiểm tra SHA-256 rồi cài. Thêm --pentest để cài luôn công cụ cho Chế độ pentest trên Kali.">Picks the package that fits (.deb for Ubuntu, Debian and Kali, .rpm for Fedora, AppImage anywhere else), checks its SHA-256 and installs it. Add --pentest to also install the tools Pentest user mode uses on Kali.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
+        <p><b data-vi="Mac và Linux: một dòng trong Terminal.">Mac and Linux: one line in a terminal.</b> <span data-vi="Trên Mac: cài Rotae.app vào Applications và lệnh rotae, không cần mật khẩu. ">On a Mac: installs Rotae.app in Applications and the rotae command, no password. </span><span data-vi="Trên Linux: ">On Linux: </span> <span data-vi="chọn gói hợp với máy (.deb cho Ubuntu, Debian, Kali; .rpm cho Fedora; AppImage cho bản khác), kiểm tra SHA-256 rồi cài. Thêm --pentest để cài luôn công cụ cho Chế độ pentest trên Kali.">picks the package that fits (.deb for Ubuntu, Debian and Kali, .rpm for Fedora, AppImage anywhere else), checks its SHA-256 and installs it. Add --pentest to also install the tools Pentest user mode uses on Kali.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
         <p><b data-vi="Hoặc bộ cài.">Or the installer.</b> <span data-vi="Chưa ký code nên Windows sẽ hỏi trước khi chạy: More info, rồi Run anyway.">It isn't signed yet, so Windows asks before running it: More info, then Run anyway.</span> <a class="dl" href="https://github.com/nhaajtt/rotae/releases/latest" data-vi="Tải .exe">Download .exe</a></p>
       </div>
       <p class="g-fine" data-vi="8 MB, một phút cài đặt, không đăng ký, không drama.">8 MB, a minute to install, no signup, no drama.</p>

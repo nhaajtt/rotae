@@ -12,6 +12,7 @@ kind of file: convert, compress, crop, sign, transcribe, check, share. Everythin
 *Rotae* is Latin for wheels.
 
 [**Download for Windows**](https://github.com/nhaajtt/rotae/releases/latest) ·
+[**Install on Mac**](#mac) ·
 [Website](https://rotae.nhaajt.com) ·
 [Watch the 50-second film](docs/media/intro.mp4) ·
 [9:16 version](docs/media/vertical.mp4)
@@ -85,7 +86,25 @@ API keys are encrypted with Windows DPAPI, readable only by your Windows account
 Download `Rotae_x.y.z_x64-setup.exe` from [Releases](https://github.com/nhaajtt/rotae/releases/latest) and run it.
 No admin rights needed. Windows SmartScreen may warn about a new app: choose **More info → Run anyway**.
 
-Requires Windows 10 or 11 (64-bit). A macOS version is planned.
+Requires Windows 10 or 11 (64-bit).
+
+### Mac
+
+Paste this into Terminal:
+
+```sh
+curl -fsSL https://rotae.nhaajt.com/install.sh | sh
+```
+
+It downloads `Rotae-mac-arm64.zip` from the latest release, checks its SHA-256 and code signature,
+puts `Rotae.app` in `/Applications` (or `~/Applications`) and adds the `rotae` command in
+`~/.local/bin`. Run it again to update; `curl -fsSL https://rotae.nhaajt.com/install.sh | sh -s -- --uninstall`
+removes it. No "unidentified developer" prompt: macOS only checks apps that a browser downloaded.
+
+Requires macOS 14 or later on Apple silicon. Rotae lives in the menu bar; in Finder, press on a
+file, hold Shift and drag onto the wheel. The Mac version is native (Swift, with the same Rust
+engine as Windows and Linux) and adds on-device AI (summaries, translation, hiding private
+details), accounting and document tools, and receiving files from a phone. Its source is in `mac/`.
 
 ### Linux
 
@@ -163,7 +182,16 @@ src-tauri/src/
   engines/pentest.rs Pentest user mode: tool manifest, bubblewrap sandbox
   engines/recon.rs   engagement scope, findings, report
   share.rs           Wi-Fi sharing, R2 upload, Claude
+mac/                 the Mac app (Swift Package, no Xcode project needed)
+  Sources/Rotae/     menu bar app: wheel, hub, editors, jobs, phone inbox
+  Sources/SDCore/    menus and actions shared by the app and the rotae command
+  Sources/sd-native/ Apple frameworks for the engine: images, OCR, PDF, on-device AI
+  engine/            the Rust engine for the Mac, built from src-tauri/src/engines plus Mac-only parts
+  scripts/           build-app.sh, sign.sh, dmg.sh
 ```
+
+To build the Mac app: Rust, Xcode 26 or later (Command Line Tools are enough for a plain build), then
+`mac/scripts/fetch-pdfium.sh && mac/scripts/build-app.sh`; the app lands in `mac/build/Rotae.app`.
 
 Built with [Tauri 2](https://tauri.app), Rust and plain JavaScript.
 
