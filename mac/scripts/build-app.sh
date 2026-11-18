@@ -6,9 +6,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 export PATH="$HOME/.cargo/bin:$PATH"
 scripts/fetch-pdfium.sh
 (cd engine && cargo build --release --locked)
-swift build -c release --product Rotae
-swift build -c release --product sd-native
-swift build -c release --product rotae-cli
+# Swift Build (the default from Swift 6.3) records the values Shortcuts metadata is made from;
+# the older native build system, still the default on Xcode 26, does not
+BS=""; swift build --help 2>/dev/null | grep -q swiftbuild && BS="--build-system swiftbuild"
+for p in Rotae sd-native rotae-cli; do swift build -c release $BS --product $p; done
 APP=build/Rotae.app
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources/vi.lproj" "$APP/Contents/Resources/en.lproj"
 cp .build/release/Rotae .build/release/sd-native .build/release/rotae-cli engine/target/release/sd-engine "$APP/Contents/MacOS/"

@@ -59,9 +59,9 @@ jobs:
         run: |
           A=mac/build/Rotae.app/Contents
           sdk="$(xcrun vtool -show-build "$A/MacOS/Rotae" | awk '/sdk/{print int($2)}')"
-          [ "$sdk" -ge 26 ]
-          [ -f "$A/Resources/Assets.car" ]
-          [ -f "$A/Resources/Metadata.appintents/extract.actionsdata" ]
+          [ "$sdk" -ge 26 ] || { echo "built against SDK $sdk, need 26+"; exit 1; }
+          [ -f "$A/Resources/Assets.car" ] || { echo "no layered icon (Assets.car)"; exit 1; }
+          [ -f "$A/Resources/Metadata.appintents/extract.actionsdata" ] || { echo "no Shortcuts metadata"; exit 1; }
       - run: mac/scripts/dmg.sh
       - name: Publish
         env:
