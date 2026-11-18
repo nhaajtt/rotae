@@ -100,13 +100,13 @@ jobs:
           ROTAE_SKIP_PDF_PRINT: '1'
         run: xvfb-run -a cargo test --lib --locked
 
-  # macos-14 proves the app still builds where there is no Liquid Glass (older Xcode, drawn
+  # macos-15 proves the app still builds where there is no Liquid Glass (older Xcode, drawn
   # look); macos-26 builds what ships.
   mac-engine:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-26]
+        os: [macos-15, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
