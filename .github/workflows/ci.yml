@@ -111,7 +111,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-      - run: brew install ffmpeg
+      # Homebrew's plain ffmpeg leaves out libvorbis, AV1 and drawtext, which the tests use;
+      # ffmpeg-full is keg-only, so put it on PATH
+      - name: ffmpeg
+        run: |
+          brew install ffmpeg-full
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
       - run: mac/scripts/fetch-pdfium.sh
       - run: swift build -c release
         working-directory: mac
