@@ -18,7 +18,7 @@ export const name = (p) => p.split(/[\\/]/).pop();
 export const LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
 
 /** State the hub shares with feature panels (files is wired up by hub.js). */
-export const shared = { files: [], show: (_id) => {} };
+export const shared = { files: [], show: () => {} };
 
 // Views register here; later features add theirs to the same list.
 export const views = [];

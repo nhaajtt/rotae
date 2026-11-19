@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { SAMPLES, buildMenu, ctx, flatActions, kindOf, loadContext, MORE, menuFor, noteUse, prefs, savePrefs } from './menu.js';
+import { SAMPLES, buildMenu, flatActions, loadContext, MORE, menuFor, noteUse, prefs, savePrefs } from './menu.js';
 import { runTarget } from './run.js';
 import { initTheme } from './theme.js';
 import { addView, h, LINUX, name, settings, settingsSections, shared, toggle, views } from './ui.js';
@@ -20,7 +20,7 @@ const $nav = document.getElementById('nav');
 
 let apps = [];
 let files = []; // files the actions view works on
-Object.defineProperty(shared, 'files', { get: () => files, set: (v) => (files = v) });
+Object.defineProperty(shared, 'files', { get: () => files, set: (v) => { files = v; } });
 const state = { view: 'actions' };
 
 function nav() {

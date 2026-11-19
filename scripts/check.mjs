@@ -9,6 +9,7 @@ import { join } from 'node:path';
 const fast = process.argv.includes('--fast');
 const out = mkdtempSync(join(tmpdir(), 'rotae-build-'));
 const steps = [
+  ['front-end lint', 'npx', ['eslint', '.']],
   ['front-end unit tests', 'node', ['--test', 'tests/unit/*.test.mjs']],
   ['web build', 'npx', ['vite', 'build', '--logLevel', 'warn', '--outDir', out, '--emptyOutDir']],
   ['UI flow tests', 'node', ['tests/ui/run.mjs']],

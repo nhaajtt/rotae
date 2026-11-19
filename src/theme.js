@@ -26,6 +26,8 @@ export async function initTheme() {
   });
   try {
     current = await invoke('get_settings');
-  } catch {}
+  } catch {
+    // no backend answer: the defaults stay
+  }
   apply();
 }

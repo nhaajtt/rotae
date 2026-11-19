@@ -100,7 +100,7 @@ async function openPage(path, scn = {}, size = [960, 680]) {
     const end = Date.now() + ms;
     let last;
     while (Date.now() < end) {
-      try { last = await evaluate(expr); if (last) return last; } catch {}
+      try { last = await evaluate(expr); if (last) return last; } catch { /* not there yet */ }
       await sleep(50);
     }
     throw new Error(`timed out waiting for: ${expr}`);

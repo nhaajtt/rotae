@@ -48,7 +48,9 @@ function unblock() {
 function track(el, e, move, done) {
   try {
     el.setPointerCapture(e.pointerId);
-  } catch {}
+  } catch {
+    // a pointer that already went away: dragging still works without capture
+  }
   const off = [];
   const on = (n, f) => (el.addEventListener(n, f), off.push(() => el.removeEventListener(n, f)));
   let over = false;

@@ -185,7 +185,7 @@ export const flows = [
     size: [380, 320],
     async run(p, assert) {
       // the backend reports these as "done" with an error (only history records say "partial")
-      await p.emit('job', { id: 3, title: 'Rename', state: 'done', percent: 1, done: 1, total: 2, outputs: ['C:\a 1.txt'], error: 'b.txt: access is denied' });
+      await p.emit('job', { id: 3, title: 'Rename', state: 'done', percent: 1, done: 1, total: 2, outputs: ['C:\\a 1.txt'], error: 'b.txt: access is denied' });
       await p.waitFor(`document.body.classList.contains('failed')`);
       assert.notEqual((await p.text('#state')).trim(), '');
       assert.ok((await p.text('#why')).length > 10);
@@ -205,7 +205,7 @@ export const flows = [
   },
   {
     name: 'peek: a camera RAW picture shows its details, not garbage text',
-    path: `/peek.html?path=${encodeURIComponent('C:\samples\IMG_0001.CR3')}`,
+    path: `/peek.html?path=${encodeURIComponent('C:\\samples\\IMG_0001.CR3')}`,
     size: [820, 600],
     scn: { file_info: { is_dir: false, items: 0, size: 900000, modified: 1794990000 } },
     async run(p, assert) {
