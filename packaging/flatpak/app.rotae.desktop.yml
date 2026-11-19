@@ -31,6 +31,6 @@ modules:
       - for s in 32x32 128x128 256x256@2; do f=usr/share/icons/hicolor/$s/apps/rotae.png; [ -f "$f" ] && install -Dm644 "$f" "/app/share/icons/hicolor/${s%@2}/apps/app.rotae.desktop.png"; done; true
     sources:
       - type: file
-        url: https://github.com/nhaajtt/rotae/releases/download/v1.1.1/Rotae_1.1.1_amd64.deb
+        url: https://github.com/nhaajtt/rotae/releases/download/v1.2.0/Rotae_1.2.0_amd64.deb
         sha256: REPLACE_WITH_THE_RELEASE_DIGEST
         dest-filename: rotae.deb

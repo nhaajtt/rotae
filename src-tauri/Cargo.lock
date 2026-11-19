@@ -4697,7 +4697,7 @@ checksum = "84348444bd7ad45729d0c49a4240d7cdc11c9d512c06c5ad1835c1ad4acda6db"
 
 [[package]]
 name = "rotae"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "age",
  "anyhow",
