@@ -617,4 +617,8 @@ fn file_names_stay_one_shell_word_wherever_the_placeholder_sits() {
     assert_eq!(t("cp {file} x"), "cp \"${SD_FILE}\" x");
     assert_eq!(t("cp {file} \"{stem} copy.{ext}\""), "cp \"${SD_FILE}\" \"${SD_STEM} copy.${SD_EXT}\"");
     assert_eq!(t("echo '{name}'"), "echo ''\"${SD_NAME}\"''");
+    // a command substitution starts unquoted again, even inside double quotes
+    assert_eq!(t("echo \"$(basename {file})\""), "echo \"$(basename \"${SD_FILE}\")\"");
+    assert_eq!(t("echo \"`basename {file}`\""), "echo \"`basename \"${SD_FILE}\"`\"");
+    assert_eq!(t("echo \"$(f (x) {file}) {dir}\""), "echo \"$(f (x) \"${SD_FILE}\") ${SD_DIR}\"");
 }

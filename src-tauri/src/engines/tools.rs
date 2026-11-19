@@ -95,11 +95,20 @@ pub fn video_size(file: &Path) -> Option<(u32, u32)> {
 }
 
 /// Ends a program and everything it started (Office, Edge and LibreOffice spawn helpers).
-/// macOS: the program and its direct children (there is no /proc to walk).
+/// macOS: the program and all its descendants, found level by level with pgrep (no /proc).
 #[cfg(target_os = "macos")]
 pub fn kill_tree(pid: u32) {
-    let _ = Command::new("/usr/bin/pkill").args(["-9", "-P", &pid.to_string()]).output();
-    unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+    let mut all = vec![pid];
+    let mut i = 0;
+    while i < all.len() && all.len() < 4096 {
+        if let Ok(o) = Command::new("/usr/bin/pgrep").args(["-P", &all[i].to_string()]).output() {
+            all.extend(String::from_utf8_lossy(&o.stdout).split_whitespace().filter_map(|s| s.parse::<u32>().ok()));
+        }
+        i += 1;
+    }
+    for p in all {
+        unsafe { libc::kill(p as i32, libc::SIGKILL) };
+    }
 }
 
 #[cfg(windows)]

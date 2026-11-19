@@ -278,7 +278,7 @@ fn url(p: &Path) -> String {
             _ => format!("%{b:02X}"),
         })
         .collect();
-    if cfg!(target_os = "macos") { format!("file://{enc}") } else { format!("file:///{enc}") }
+    if enc.starts_with('/') { format!("file://{enc}") } else { format!("file:///{enc}") }
 }
 
 fn format_json(src: &Path, pretty: bool) -> Result<PathBuf> {
@@ -476,7 +476,6 @@ fn json_to_csv(src: &Path) -> Result<PathBuf> {
             Some(other) => other.to_string(),
         };
         // a spreadsheet would run "=HYPERLINK(...)" from a stranger's data as a formula
-        #[cfg(target_os = "macos")]
         let s = if s.starts_with(['=', '+', '-', '@', '\t', '\r']) && s.parse::<f64>().is_err() { format!("'{s}") } else { s };
         if s.contains([',', '"', '\n']) { format!("\"{}\"", s.replace('"', "\"\"")) } else { s }
     };

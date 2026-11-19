@@ -20,6 +20,10 @@
 set -eu
 
 REPO="nhaajtt/rotae"
+# Apple Team ID of the Developer ID certificate that signs the Mac app. Once it is set, only an app
+# signed by that team and accepted by Gatekeeper gets installed; while empty (ad-hoc builds) the
+# app is installed with Gatekeeper's quarantine left in place, so macOS still asks before it runs.
+MAC_TEAM_ID=""
 
 # --- macOS ---------------------------------------------------------------------------------------
 mac_say() { printf 'Rotae: %s\n' "$*"; }
@@ -79,6 +83,13 @@ install_mac() {
   ditto -x -k "$tmp/Rotae.zip" "$tmp/out"
   [ -d "$tmp/out/Rotae.app" ] || mac_fail "the download doesn't contain Rotae.app."
   codesign --verify --deep --strict "$tmp/out/Rotae.app" 2>/dev/null || mac_fail "the app's signature doesn't verify. Nothing was installed."
+  team="$(codesign -dv "$tmp/out/Rotae.app" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+  trusted=""
+  if [ -n "$MAC_TEAM_ID" ]; then
+    [ "$team" = "$MAC_TEAM_ID" ] || mac_fail "the app isn't signed by the Rotae developer (team ${team:-none}). Nothing was installed."
+    spctl -a -t exec "$tmp/out/Rotae.app" 2>/dev/null || mac_fail "Gatekeeper doesn't accept this app. Nothing was installed."
+    trusted=1
+  fi
   version="$(plutil -extract CFBundleShortVersionString raw "$tmp/out/Rotae.app/Contents/Info.plist" 2>/dev/null || true)"
 
   # quit a running copy so it can be replaced
@@ -92,13 +103,19 @@ install_mac() {
   # the old copy only goes once the new one is fully in place
   rm -rf "$dest/.Rotae.app.new"
   ditto "$tmp/out/Rotae.app" "$dest/.Rotae.app.new"
-  xattr -dr com.apple.quarantine "$dest/.Rotae.app.new" 2>/dev/null || true
+  if [ -n "$trusted" ]; then
+    xattr -dr com.apple.quarantine "$dest/.Rotae.app.new" 2>/dev/null || true
+  else
+    # not signed by a known developer: let Gatekeeper ask the user on first open
+    xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");install.sh;" "$dest/.Rotae.app.new" 2>/dev/null || true
+  fi
   rm -rf "$dest/Rotae.app"
   mv "$dest/.Rotae.app.new" "$dest/Rotae.app"
 
   mac_link_cli "$dest"
   mac_say "${version:+$version }is installed in $dest. It lives in the menu bar."
   mac_say "To use it: in Finder, press on a file, hold Shift and drag onto the wheel that opens."
+  [ -n "$trusted" ] || mac_say "macOS will ask before the first start: open System Settings > Privacy & Security and choose Open Anyway."
   open "$dest/Rotae.app"
 }
 

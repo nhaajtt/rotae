@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release to add the Mac build to (e.g. v1.2.0), built from the branch picked above
+        description: Release to add the Mac build to (e.g. v1.2.0). Built from that tag; only a tag from before the Mac version is built from the branch picked above
         required: true
 permissions:
   contents: read
@@ -23,6 +23,19 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Build the code of the release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { echo "no tag $TAG"; exit 1; }
+          if git cat-file -e "$TAG:mac/Package.swift" 2>/dev/null; then
+            git checkout -q "$TAG"
+          else
+            echo "::warning::$TAG has no Mac code; building $(git rev-parse --short HEAD) from ${GITHUB_REF_NAME} for it"
+          fi
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - name: Import signing certificate
         env:

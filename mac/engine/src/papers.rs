@@ -1688,9 +1688,13 @@ fn slim(src: &Path) -> Result<Vec<PathBuf>> {
         Ok(changed.len())
     })();
     let _ = std::fs::remove_dir_all(&dir);
-    let n = done?;
+    // out_path() already made the file; never leave it behind when there is nothing to give
+    let n = done.inspect_err(|_| {
+        let _ = std::fs::remove_file(&out);
+    })?;
     let after = std::fs::metadata(&out)?.len();
     if after * 100 > before * 95 {
+        let _ = std::fs::remove_file(&out);
         bail!("this file is already small");
     }
     note(&format!("{} → {}, {}", megabytes(before), megabytes(after), plural(n, "picture", "pictures")));

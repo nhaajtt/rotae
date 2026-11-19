@@ -295,6 +295,9 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
 pub(crate) fn shell_template(command: &str) -> String {
     const VARS: [(&str, &str); 5] = [("{file}", "SD_FILE"), ("{dir}", "SD_DIR"), ("{name}", "SD_NAME"), ("{stem}", "SD_STEM"), ("{ext}", "SD_EXT")];
     let (mut out, mut rest, mut quote) = (String::new(), command, None::<char>);
+    // $(...) and `...` start a fresh quoting context, even inside "...": remember the outer
+    // quote, what closes the substitution, and how many plain ( are open inside it
+    let mut subs: Vec<(Option<char>, char, usize)> = Vec::new();
     'scan: while let Some(c) = rest.chars().next() {
         for (token, var) in VARS {
             if rest.starts_with(token) {
@@ -317,6 +320,27 @@ pub(crate) fn shell_template(command: &str) -> String {
                 rest = it.as_str();
                 continue;
             }
+            ('$', None | Some('"')) if rest.starts_with("$(") && !rest.starts_with("$((") => {
+                subs.push((quote, ')', 0));
+                quote = None;
+                out += "$(";
+                rest = &rest[2..];
+                continue;
+            }
+            ('`', None) if subs.last().is_some_and(|f| f.1 == '`') => quote = subs.pop().and_then(|f| f.0),
+            ('`', None | Some('"')) => {
+                subs.push((quote, '`', 0));
+                quote = None;
+            }
+            ('(', None) => {
+                if let Some(f) = subs.last_mut() {
+                    f.2 += 1;
+                }
+            }
+            (')', None) if subs.last().is_some_and(|f| f.1 == ')') => match subs.last_mut() {
+                Some(f) if f.2 > 0 => f.2 -= 1,
+                _ => quote = subs.pop().and_then(|f| f.0),
+            },
             ('"' | '\'', None) => quote = Some(c),
             (_, Some(q)) if c == q => quote = None,
             _ => {}

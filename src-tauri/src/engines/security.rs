@@ -114,7 +114,7 @@ pub fn disguise(p: &Path) -> Option<String> {
             return Some(format!("{}: looks like .{fake} but is a program", name(p)));
         }
     }
-    if n.contains('\u{202e}') || (cfg!(target_os = "macos") && n.contains(['\u{202d}', '\u{2066}', '\u{2067}', '\u{2068}', '\u{200f}'])) {
+    if n.contains(['\u{202e}', '\u{202d}', '\u{2066}', '\u{2067}', '\u{2068}', '\u{200f}']) {
         return Some(format!("{}: name uses a hidden right-to-left trick", name(p)));
     }
     let (real, what) = sniff(p)?;
@@ -745,12 +745,6 @@ pub fn whisper_model() -> Option<PathBuf> {
     tool_file("whisper", "ggml-base.bin")
 }
 
-#[cfg(target_os = "macos")]
-pub fn tools_dir() -> PathBuf {
-    PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join("Library/Application Support/ShiftDrop/tools")
-}
-
-#[cfg(not(target_os = "macos"))]
 pub fn tools_dir() -> PathBuf {
     crate::platform::data_dir().join("tools")
 }
