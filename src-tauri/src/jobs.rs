@@ -238,7 +238,11 @@ fn run(app: &AppHandle, job: Job) {
 }
 
 #[tauri::command]
-pub async fn run_action(app: AppHandle, paths: Vec<String>, action: Action, title: String) -> Result<u64, String> {
+pub async fn run_action(app: AppHandle, window: tauri::WebviewWindow, paths: Vec<String>, action: Action, title: String) -> Result<u64, String> {
+    if !allowed_from(window.label(), &action) {
+        crate::log(&format!("run_action: {} may not run {}", window.label(), redacted(&action)));
+        return Err("not allowed from this window".into());
+    }
     crate::log(&format!("run_action {} on {paths:?}", redacted(&action)));
     queue(&app, paths.into_iter().map(PathBuf::from).collect(), action, title)
 }
@@ -260,6 +264,31 @@ pub fn queue(app: &AppHandle, paths: Vec<PathBuf>, action: Action, title: String
     crate::windows::show_toast(app);
     app.state::<Queue>().0.lock().unwrap_or_else(|e| e.into_inner()).send(Job { id, title, paths, action }).map_err(|e| e.to_string())?;
     Ok(id)
+}
+
+/// An editor window only saves its own edits; it never needs to run anything else (a shell
+/// command, shredding, a request to Claude), so it can't ask for them either.
+fn allowed_from(label: &str, action: &Action) -> bool {
+    !label.starts_with("editor-")
+        || matches!(action, Action::Crop { .. } | Action::AddBg { .. } | Action::Redact { .. } | Action::Trim { .. } | Action::Pages { .. } | Action::Stamp { .. })
+}
+
+/// "Undo" in the toast: moves a finished job's results to the Recycle Bin. Only files that a job
+/// recorded as its own output are accepted, so a window can't ask for any other file to go.
+#[tauri::command]
+pub async fn trash(app: AppHandle, paths: Vec<String>) -> Result<(), String> {
+    let ours = with_history(&app, |list| own_outputs(list, &paths));
+    if ours.len() != paths.len() {
+        crate::log(&format!("trash: refused {} path(s) that no job made", paths.len() - ours.len()));
+        return Err("only files Rotae made can be undone".into());
+    }
+    crate::shell::trash(ours).await
+}
+
+/// The requested paths that some recorded job lists among its outputs.
+fn own_outputs(list: &[Record], paths: &[String]) -> Vec<String> {
+    let same = |a: &str, b: &str| if cfg!(windows) { a.eq_ignore_ascii_case(b) } else { a == b };
+    paths.iter().filter(|p| list.iter().any(|r| r.outputs.iter().any(|o| same(o, p)))).cloned().collect()
 }
 
 /// Opens File Explorer with the file selected.
@@ -289,6 +318,36 @@ mod tests {
         let s = super::redact(r#"Protect { password: "Secr\"et-1" } and Decrypt { password: "abc" } Stamp { page: 0, png: "data:image/png;base64,iVBORw0K" }"#);
         assert!(!s.contains("Secr") && !s.contains("abc") && !s.contains("iVBOR"), "{s}");
         assert_eq!(s.matches("•••").count(), 3);
+    }
+
+    #[test]
+    fn editor_windows_only_save_edits() {
+        let a = |j: &str| serde_json::from_str::<super::Action>(j).unwrap();
+        assert!(super::allowed_from("editor-3", &a(r#"{"op":"crop","rect":[0,0,10,10]}"#)));
+        assert!(!super::allowed_from("editor-3", &a(r#"{"op":"custom","command":"calc"}"#)));
+        assert!(!super::allowed_from("editor-0", &a(r#"{"op":"shred"}"#)));
+        assert!(super::allowed_from("overlay", &a(r#"{"op":"custom","command":"echo"}"#)));
+        assert!(super::allowed_from("toast", &a(r#"{"op":"shred"}"#)));
+    }
+
+    #[test]
+    fn undo_only_takes_a_jobs_own_outputs() {
+        let rec = |outs: &[&str]| super::Record {
+            id: 1,
+            time: 0,
+            title: String::new(),
+            files: vec![],
+            state: "done".into(),
+            outputs: outs.iter().map(|s| s.to_string()).collect(),
+            error: None,
+            note: None,
+            action: None,
+        };
+        let list = vec![rec(&[r"C:\a\x Smaller.pdf"]), rec(&[r"C:\a\y.png", r"C:\a\z.png"])];
+        let ask = |p: &[&str]| super::own_outputs(&list, &p.iter().map(|s| s.to_string()).collect::<Vec<_>>()).len();
+        assert_eq!(ask(&[r"C:\a\y.png", r"C:\a\z.png"]), 2);
+        assert_eq!(ask(&[r"C:\a\y.png", r"C:\Users\me\thesis.docx"]), 1);
+        assert_eq!(ask(&[r"C:\Windows\System32"]), 0);
     }
 
     /// tests/unit/golden/actions.json is every action the wheel and hub can send (kept in step by

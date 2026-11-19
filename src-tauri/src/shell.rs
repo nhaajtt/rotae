@@ -5,8 +5,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-/// Moves files to the Recycle Bin, so "Undo" can itself be undone from there.
-#[tauri::command]
+/// Moves files to the Recycle Bin, so "Undo" can itself be undone from there. The command the
+/// windows call is jobs::trash, which first checks the files are a job's own results.
 pub async fn trash(paths: Vec<String>) -> Result<(), String> {
     #[cfg(windows)]
     {
