@@ -4,6 +4,8 @@ mod engines;
 #[cfg(windows)]
 mod explorer;
 mod jobs;
+#[cfg(test)]
+mod lib_tests;
 mod naming;
 mod platform;
 mod settings;
@@ -47,13 +49,23 @@ pub fn log(msg: &str) {
 /// Opens a help link from a failure's fix. Only these sites, so a message can never open anything else.
 #[tauri::command]
 async fn open_link(url: String) -> Result<(), String> {
-    const ALLOWED: [&str; 3] = ["https://www.libreoffice.org/", "https://www.microsoft.com/", "https://github.com/nhaajtt/rotae/"];
-    // the repo itself (no slash) is allowed too, but not look-alikes such as …/rotae-evil
-    let ok = url == "https://github.com/nhaajtt/rotae" || ALLOWED.iter().any(|a| url.starts_with(a));
-    if !ok || url.chars().any(|c| c.is_whitespace() || c.is_control() || c == '"') {
+    if !link_allowed(&url) {
         return Err("link not allowed".into());
     }
     engines::security::open_url(&url).map_err(|e| e.to_string())
+}
+
+/// Links the windows may open: download pages of LibreOffice and Office, and this app's GitHub
+/// pages. The path may not climb out of its prefix ("..", "%2e%2e", backslashes), and only
+/// plain URL characters are accepted, so nothing reaches the browser or shell half-escaped.
+fn link_allowed(url: &str) -> bool {
+    const ALLOWED: [&str; 3] = ["https://www.libreoffice.org/", "https://www.microsoft.com/", "https://github.com/nhaajtt/rotae/"];
+    // the repo itself (no slash) is allowed too, but not look-alikes such as …/rotae-evil
+    let prefixed = url == "https://github.com/nhaajtt/rotae" || ALLOWED.iter().any(|a| url.starts_with(a));
+    let plain = url.len() <= 2048 && url.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._~:/?#[]@!&'()*+,;=%".contains(&b));
+    let path = url.split(['?', '#']).next().unwrap_or("").to_ascii_lowercase();
+    let climbs = path.split('/').any(|s| s == "." || s == "..") || path.contains("%2e") || path.contains("%2f") || path.contains("%5c") || path.contains('@');
+    prefixed && plain && !climbs
 }
 
 /// Opens the log folder in Explorer.
@@ -237,7 +249,7 @@ pub fn run() {
             engines::office::office_ok,
             engines::pdf::pdf_thumbs,
             engines::pentest::pentest_tools,
-            shell::trash,
+            jobs::trash,
             share::share_lan,
             share::share_r2,
             watch::folder_exists,
