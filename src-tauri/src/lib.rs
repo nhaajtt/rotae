@@ -214,8 +214,12 @@ pub fn run() {
     platform::prepare_display();
     std::panic::set_hook(Box::new(|p| log(&format!("panic: {p}"))));
     log(&format!("start {}", env!("CARGO_PKG_VERSION")));
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _| opened_with(app, argv)))
+    let mut builder = tauri::Builder::default();
+    // a test copy with its own data folder runs next to the installed app instead of handing over to it
+    if platform::test_dir().is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _| opened_with(app, argv)));
+    }
+    builder
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -307,7 +311,9 @@ pub fn run() {
             watch::start(handle.clone());
             if first {
                 // first launch: the app lives in the tray, so say hello and show how it works
-                let _ = autostart_on_first_run(&handle);
+                if platform::test_dir().is_none() {
+                    let _ = autostart_on_first_run(&handle);
+                }
                 let _ = windows::open_hub_now(handle.clone(), vec![], "welcome".into(), None);
             }
             opened_with(&handle, std::env::args().collect());

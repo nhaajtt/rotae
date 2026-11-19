@@ -2,9 +2,27 @@
 
 use std::path::{Path, PathBuf};
 
+/// A folder of its own for everything this copy keeps (settings, history, logs, add-ons and the
+/// windows' web storage), from ROTAE_DATA_DIR. It is for running a second copy next to the
+/// installed one while developing or testing; that copy then also leaves the single-instance
+/// hand-off and the first-run autostart alone. The installed app never sets it.
+pub fn test_dir() -> Option<PathBuf> {
+    std::env::var_os("ROTAE_DATA_DIR").map(PathBuf::from).filter(|p| p.is_absolute())
+}
+
+/// Where settings.json and history.json live: the app's config folder, or `config` in the
+/// test folder.
+pub fn config_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+    use tauri::Manager;
+    test_dir().map(|d| d.join("config")).or_else(|| app.path().app_config_dir().ok())
+}
+
 /// Per-user data folder: %LOCALAPPDATA%\Rotae on Windows, $XDG_DATA_HOME/rotae
 /// (usually ~/.local/share/rotae) elsewhere.
 pub fn data_dir() -> PathBuf {
+    if let Some(d) = test_dir() {
+        return d.join("data");
+    }
     #[cfg(windows)]
     {
         std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("Rotae")

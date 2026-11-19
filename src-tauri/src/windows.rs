@@ -7,13 +7,21 @@ use std::{
 };
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+/// A test copy (ROTAE_DATA_DIR) keeps the windows' local storage apart from the installed app's.
+fn own_storage<'a, R: tauri::Runtime, M: Manager<R>>(b: WebviewWindowBuilder<'a, R, M>) -> WebviewWindowBuilder<'a, R, M> {
+    match crate::platform::test_dir() {
+        Some(d) => b.data_directory(d.join("webview")),
+        None => b,
+    }
+}
+
 /// Overlay (radial menu) size in logical pixels.
 const OVERLAY: f64 = 460.0;
 const TOAST: (f64, f64) = (380.0, 112.0);
 const MARGIN: f64 = 8.0;
 
 fn floating(app: &AppHandle, label: &str, page: &str, size: (f64, f64)) -> tauri::Result<WebviewWindow> {
-    let b = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+    let b = own_storage(WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into())))
         .title("Rotae")
         .inner_size(size.0, size.1)
         .transparent(true)
@@ -334,7 +342,7 @@ pub fn open_editor_now(app: AppHandle, path: String, tool: String) -> Result<(),
         .map_err(|e| e.to_string())?;
     let label = format!("editor-{}", N.fetch_add(1, Ordering::Relaxed));
     let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    WebviewWindowBuilder::new(&app, label, WebviewUrl::App(format!("editor.html?{query}").into()))
+    own_storage(WebviewWindowBuilder::new(&app, label, WebviewUrl::App(format!("editor.html?{query}").into())))
         .title(format!("{name} — Rotae"))
         .inner_size(900.0, 680.0)
         .min_inner_size(560.0, 480.0)
@@ -374,7 +382,7 @@ pub fn open_hub_now(app: AppHandle, paths: Vec<String>, view: String, item: Opti
         let _ = w.set_focus();
         return Ok(());
     }
-    WebviewWindowBuilder::new(&app, "hub", WebviewUrl::App("hub.html".into()))
+    own_storage(WebviewWindowBuilder::new(&app, "hub", WebviewUrl::App("hub.html".into())))
         .title("Rotae")
         .inner_size(820.0, 600.0)
         .min_inner_size(640.0, 460.0)
@@ -413,7 +421,7 @@ pub fn shelf_add_now(app: AppHandle, paths: Vec<String>) -> Result<(), String> {
     }
     SHELF_READY.store(false, Ordering::SeqCst);
     let (w, h) = (300.0, 460.0);
-    let mut b = WebviewWindowBuilder::new(&app, "shelf", WebviewUrl::App("shelf.html".into()))
+    let mut b = own_storage(WebviewWindowBuilder::new(&app, "shelf", WebviewUrl::App("shelf.html".into())))
         .title("Rotae shelf")
         .inner_size(w, h)
         .decorations(false)
@@ -499,7 +507,7 @@ pub fn open_peek_now(app: AppHandle, path: String) -> Result<(), String> {
         return Ok(());
     }
     let url: String = tauri::Url::parse_with_params("x://e/", [("path", path.as_str())]).map(|u| u.query().unwrap_or_default().to_string()).map_err(|e| e.to_string())?;
-    WebviewWindowBuilder::new(&app, "peek", WebviewUrl::App(format!("peek.html?{url}").into()))
+    own_storage(WebviewWindowBuilder::new(&app, "peek", WebviewUrl::App(format!("peek.html?{url}").into())))
         .title("Rotae preview")
         .inner_size(960.0, 680.0)
         .center()

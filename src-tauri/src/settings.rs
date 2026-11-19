@@ -244,7 +244,7 @@ fn usable(v: &str) -> &str {
 pub struct Store(pub Mutex<Settings>);
 
 fn file(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_config_dir().ok().map(|d| d.join("settings.json"))
+    crate::platform::config_dir(app).map(|d| d.join("settings.json"))
 }
 
 /// True before the settings file has ever been written (first launch).
