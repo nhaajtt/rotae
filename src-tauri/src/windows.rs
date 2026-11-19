@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Mutex,
@@ -324,6 +324,9 @@ pub fn open_editor_now(app: AppHandle, path: String, tool: String) -> Result<(),
     if !p.is_file() {
         return Err("file not found".into());
     }
+    if !["crop", "addbg", "redact", "trim", "pages", "sign"].contains(&tool.as_str()) {
+        return Err("unknown editor".into());
+    }
     // Let the editor webview read only this one file.
     app.asset_protocol_scope().allow_file(&p).map_err(|e| e.to_string())?;
     let query: String = tauri::Url::parse_with_params("x://e/", [("tool", tool.as_str()), ("path", path.as_str())])
@@ -443,7 +446,7 @@ static SHELF_READY: AtomicBool = AtomicBool::new(false);
 /// A small PNG for the cursor while dragging files out of the app.
 #[tauri::command]
 pub fn drag_icon() -> Result<String, String> {
-    let p = std::env::temp_dir().join("rotae").join("drag.png");
+    let p = crate::naming::temp_root().join("drag.png");
     if !p.exists() {
         let _ = std::fs::create_dir_all(p.parent().unwrap());
         std::fs::write(&p, include_bytes!("../icons/32x32.png")).map_err(|e| e.to_string())?;
@@ -459,11 +462,33 @@ pub async fn open_peek(app: AppHandle, path: String) -> Result<(), String> {
     open_peek_now(app, path)
 }
 
+/// The files Quick Look was opened on (newest last). Its window may read only these, so a page
+/// can't use read_text/file_info to look at anything else on the computer.
+static PEEKED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+fn note_peeked(p: &Path) {
+    let mut list = PEEKED.lock().unwrap_or_else(|e| e.into_inner());
+    list.retain(|x| x != p);
+    list.push(p.to_path_buf());
+    let extra = list.len().saturating_sub(16);
+    list.drain(..extra);
+}
+
+fn peeked(path: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(path);
+    if PEEKED.lock().unwrap_or_else(|e| e.into_inner()).contains(&p) {
+        Ok(p)
+    } else {
+        Err("not the file being previewed".into())
+    }
+}
+
 pub fn open_peek_now(app: AppHandle, path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
     if !p.exists() {
         return Err("file not found".into());
     }
+    note_peeked(&p);
     if p.is_file() {
         app.asset_protocol_scope().allow_file(&p).map_err(|e| e.to_string())?;
     }
@@ -488,6 +513,7 @@ pub fn open_peek_now(app: AppHandle, path: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn read_text(path: String, max: usize) -> Result<String, String> {
     use std::io::Read;
+    let path = peeked(&path)?;
     let mut buf = Vec::new();
     std::fs::File::open(&path).and_then(|f| f.take(max.min(4 << 20) as u64).read_to_end(&mut buf)).map_err(|e| e.to_string())?;
     let utf16 = |b: &[u8], be: bool| {
@@ -514,7 +540,7 @@ pub struct FileInfo {
 
 #[tauri::command]
 pub async fn file_info(path: String) -> Result<FileInfo, String> {
-    let p = PathBuf::from(&path);
+    let p = peeked(&path)?;
     let m = std::fs::metadata(&p).map_err(|e| e.to_string())?;
     let modified = m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
     Ok(FileInfo {
