@@ -180,14 +180,15 @@ export const flows = [
     },
   },
   {
-    name: 'toast: a partly failed job is labelled',
-    todo: 'state tag is blank for partial jobs (fixed in the correctness pass)',
+    name: 'toast: a job where some files failed shows what went wrong',
     path: '/toast.html',
     size: [380, 320],
     async run(p, assert) {
-      await p.emit('job', { id: 3, title: 'Rename', state: 'partial', percent: 1, done: 1, total: 2, outputs: ['C:\\a 1.txt'], error: '1 of 2 failed' });
-      await p.sleep(200);
-      assert.notEqual((await p.text('#state')).trim(), '', 'state tag is empty');
+      // the backend reports these as "done" with an error (only history records say "partial")
+      await p.emit('job', { id: 3, title: 'Rename', state: 'done', percent: 1, done: 1, total: 2, outputs: ['C:\a 1.txt'], error: 'b.txt: access is denied' });
+      await p.waitFor(`document.body.classList.contains('failed')`);
+      assert.notEqual((await p.text('#state')).trim(), '');
+      assert.ok((await p.text('#why')).length > 10);
     },
   },
 
