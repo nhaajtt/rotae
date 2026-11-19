@@ -122,6 +122,19 @@ export const flows = [
     },
   },
   {
+    name: 'hub: screen readers get the current view, the action list and translated labels',
+    path: '/hub.html',
+    scn: { hub_take: { view: 'actions', paths: [png] }, settings: { lang: 'vi' } },
+    async run(p, assert) {
+      await p.waitFor(`document.querySelector('[role=listbox] [role=option][aria-selected=true]')`);
+      assert.equal(await p.eval(`document.querySelector('nav [aria-current=page]')?.textContent.trim().length > 0`), true);
+      assert.equal(await p.eval(`document.querySelector('input.search').getAttribute('aria-activedescendant')`), 'action-0');
+      await p.waitFor(`document.querySelector('input.search').getAttribute('aria-label') === 'Tìm thao tác'`);
+      // the search box itself is translated too (it used to keep its English placeholder)
+      assert.match(await p.eval(`document.querySelector('input.search').placeholder`), /^Tìm trong \d+ thao tác…$/);
+    },
+  },
+  {
     name: 'hub: activity lists past jobs and a failed one offers a fix',
     path: '/hub.html',
     scn: { hub_take: { view: 'activity' } },

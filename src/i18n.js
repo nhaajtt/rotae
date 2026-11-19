@@ -21,7 +21,7 @@ const VI = {
   Minify: 'Thu gọn', 'App .ico': 'Icon app', Favicons: 'Favicon web', 'Other…': 'Khác…', Word: 'Word',
   'drop here': 'thả vào đây', 'not': 'không', 'supported': 'hỗ trợ', '⚠ fake type': '⚠ giả đuôi',
   // hub
-  Actions: 'Thao tác', Wheel: 'Vòng tròn', Settings: 'Cài đặt', Rename: 'Đổi tên', Recipes: 'Công thức', Confirm: 'Xác nhận',
+  Actions: 'Thao tác', 'Search actions': 'Tìm thao tác', Wheel: 'Vòng tròn', Settings: 'Cài đặt', Rename: 'Đổi tên', Recipes: 'Công thức', Confirm: 'Xác nhận',
   'Drop files here': 'Thả file vào đây', 'Paste': 'Dán', 'Nothing matches.': 'Không có kết quả.', 'opens app': 'mở app', editor: 'trình sửa',
   'Drop files here, or choose "More" on the wheel to see everything you can do with them.':
     'Thả file vào đây, hoặc chọn "Thêm" trên vòng tròn để xem mọi thao tác.',
@@ -334,7 +334,7 @@ const skip = (n) => n.parentElement?.closest('[translate="no"], .chip, .mono, pr
 
 // What each node said before it was translated, so English can come back without a reload.
 const was = new WeakMap(); // text node → { en, vi }
-const wasAttr = new WeakMap(); // element → { placeholder: { en, vi }, title: { en, vi } }
+const wasAttr = new WeakMap(); // element → { placeholder: { en, vi }, title: …, ariaLabel: … }
 
 function text(n) {
   const v = t(n.nodeValue);
@@ -353,14 +353,19 @@ function attr(e, k) {
   e[k] = v;
 }
 
+const ATTRS = '[placeholder],[title],[aria-label]';
+/** Elements under root with translatable attributes, root itself included (an <input> that
+ * was just added is its own subtree). */
+const withAttrs = (root) => (root.querySelectorAll ? [...(root.matches?.(ATTRS) ? [root] : []), ...root.querySelectorAll(ATTRS)] : []);
+
 function walk(root) {
   const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = it.nextNode(); n; n = it.nextNode()) if (!skip(n)) text(n);
-  if (root.querySelectorAll) {
-    for (const e of root.querySelectorAll('[placeholder],[title]')) {
-      if (e.placeholder) attr(e, 'placeholder');
-      if (e.title && !skip(e.firstChild || e)) attr(e, 'title');
-    }
+  for (const e of withAttrs(root)) {
+    if (e.placeholder) attr(e, 'placeholder');
+    if (e.title && !skip(e.firstChild || e)) attr(e, 'title');
+    // what a screen reader says for icon buttons and the action list
+    if (e.ariaLabel) attr(e, 'ariaLabel');
   }
 }
 
@@ -371,7 +376,7 @@ function restore(root) {
     const w = was.get(n);
     if (w && n.nodeValue === w.vi) n.nodeValue = w.en;
   }
-  for (const e of root.querySelectorAll('[placeholder],[title]')) {
+  for (const e of withAttrs(root)) {
     const m = wasAttr.get(e);
     for (const k in m) if (e[k] === m[k].vi) e[k] = m[k].en;
   }
