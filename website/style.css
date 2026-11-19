@@ -166,7 +166,9 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .g-top-link span { color: var(--ac); }
 @keyframes g-rise { from { opacity: 0; transform: translateY(10px); } }
 /* Windows / macOS / Linux switch above the install command */
-.os-row { flex-basis: 100%; }
+.os-row { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.os-found, .os-warn { font: 12px/1.5 var(--mono); color: var(--tt); }
+.os-warn { color: var(--ac); }
 .os-tabs { display: inline-flex; align-items: center; height: 36px; background: var(--pill); border: 1px solid var(--pill-line); border-radius: 9999px; box-shadow: var(--pill-edge); }
 .os-tabs button { height: 26px; }
 .os-tabs button:hover { color: var(--tp); }

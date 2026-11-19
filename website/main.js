@@ -30,13 +30,36 @@ function guessOS() {
   if (/Linux|X11|CrOS/i.test(p) && !/Android/i.test(p)) return 'linux';
   return 'win';
 }
+const detected = guessOS();
+// a Mac with an Intel chip, or an ARM Linux machine, can't run the build offered here
+let archNote = '';
 function setOS(which) {
   os = which;
   document.getElementById('hdr-dl').href = DL[os];
   document.querySelectorAll('[data-os-show]').forEach((n) => (n.hidden = !n.dataset.osShow.split(' ').includes(os)));
   document.querySelectorAll('[data-os]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
+  document.querySelectorAll('.os-found').forEach((n) => (n.hidden = os !== detected || !!archNote));
+  document.querySelectorAll('[data-found]').forEach((n) => (n.hidden = n.dataset.found !== os));
+  document.querySelectorAll('[data-warn]').forEach((n) => (n.hidden = os !== detected || n.dataset.warn !== archNote));
 }
-setOS(['win', 'mac', 'linux'].includes(localStorage.getItem('os')) ? localStorage.getItem('os') : guessOS());
+setOS(['win', 'mac', 'linux'].includes(localStorage.getItem('os')) ? localStorage.getItem('os') : detected);
+(async () => {
+  try {
+    const h = await navigator.userAgentData?.getHighEntropyValues?.(['architecture']);
+    if (detected === 'mac' && h?.architecture === 'x86') archNote = 'intel';
+    if (detected === 'linux' && h?.architecture === 'arm') archNote = 'arm';
+  } catch {}
+  if (!archNote && detected === 'linux' && /aarch64|arm64|armv/i.test(navigator.userAgent)) archNote = 'arm';
+  if (!archNote && detected === 'mac') {
+    // browsers without client hints: an Intel Mac reports an Intel, AMD or NVIDIA graphics chip
+    try {
+      const gl = document.createElement('canvas').getContext('webgl');
+      const ext = gl?.getExtension('WEBGL_debug_renderer_info');
+      if (/Intel|AMD|Radeon|NVIDIA/i.test(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '')) archNote = 'intel';
+    } catch {}
+  }
+  if (archNote) setOS(os);
+})();
 document.querySelectorAll('[data-os]').forEach((b) =>
   b.addEventListener('click', () => {
     localStorage.setItem('os', b.dataset.os);
@@ -199,7 +222,7 @@ const BARS = [
   { from: 2026.82, row: 0, cls: 'is-current', en: ['Rotae 1.0', 'Windows · 2026'], vi: ['Rotae 1.0', 'Windows · 2026'] },
   { from: 2026.86, row: 1, cls: '', en: ['One-line install', 'PowerShell'], vi: ['Cài bằng một dòng lệnh', 'PowerShell'] },
   { from: 2026.87, row: 3, cls: 'is-current', en: ['Rotae for Linux', 'Ubuntu · Kali · Fedora'], vi: ['Rotae cho Linux', 'Ubuntu · Kali · Fedora'] },
-  { from: 2027.05, row: 2, cls: 'is-future', en: ['macOS', 'planned'], vi: ['macOS', 'dự kiến'] },
+  { from: 2026.88, row: 2, cls: 'is-current', en: ['Rotae for Mac', 'Apple silicon · 1.2'], vi: ['Rotae cho Mac', 'chip Apple · 1.2'] },
   { from: 2024.76, row: 3, cls: 'is-muted', href: 'https://tauri.app', en: ['Tauri 2', 'the shell'], vi: ['Tauri 2', 'khung app'] },
   { from: 2025.6, row: 4, cls: 'is-muted is-faint', href: 'https://ffmpeg.org', en: ['FFmpeg', 'video and audio add-on'], vi: ['FFmpeg', 'tiện ích video, nhạc'] },
 ];
