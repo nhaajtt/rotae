@@ -24,7 +24,9 @@ function when(t) {
 async function load() {
   history = await invoke('get_history').catch(() => []);
   shared.nav?.();
-  if (shared.view?.() !== 'activity') return;
+  // redrawing marks every failure as seen: only do that while someone is looking at the list,
+  // or a failure that arrives while the hub is hidden would never light up the badge
+  if (shared.view?.() !== 'activity' || document.hidden || !document.hasFocus()) return;
   const main = document.getElementById('main');
   // a download or a fix in progress would be reset by a redraw: the next click or tab redraws anyway
   if (main?.querySelector('button[data-busy]')) return;
@@ -104,4 +106,5 @@ addView({
 });
 
 listen('history', load);
+addEventListener('focus', () => shared.view?.() === 'activity' && load());
 load();

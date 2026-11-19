@@ -204,6 +204,17 @@ export const flows = [
     },
   },
   {
+    name: 'peek: a camera RAW picture shows its details, not garbage text',
+    path: `/peek.html?path=${encodeURIComponent('C:\samples\IMG_0001.CR3')}`,
+    size: [820, 600],
+    scn: { file_info: { is_dir: false, items: 0, size: 900000, modified: 1794990000 } },
+    async run(p, assert) {
+      await p.waitFor(`document.querySelector('#view dl, #view .info, #view table')`);
+      assert.equal(await p.eval(`!!document.querySelector('#view pre')`), false);
+      assert.equal((await p.calls('read_text')).length, 0);
+    },
+  },
+  {
     name: 'peek: a disguised file shows the warning',
     path: `/peek.html?path=${encodeURIComponent('C:\\Downloads\\invoice.pdf.exe')}`,
     size: [820, 600],

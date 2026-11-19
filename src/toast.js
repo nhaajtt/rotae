@@ -161,6 +161,8 @@ function scheduleHide(ms) {
     if (document.body.matches(':hover')) return scheduleHide(1500);
     if ([...jobs.values()].some((j) => j.state === 'running') || isFail(jobs.get(shown))) return;
     jobs.clear();
+    // a job's card replaced the update offer: bring it back instead of waiting a day
+    if (pending) return offer(pending);
     invoke('toast_hide');
   }, ms);
 }
@@ -220,6 +222,8 @@ $('undo').addEventListener('click', async () => {
 });
 $('close').addEventListener('click', () => {
   clearTimeout(hideTimer);
+  // closing the update card puts it off until the next daily check, not until the next job
+  if (document.body.classList.contains('update')) pending = null;
   dismissFailure();
   invoke('toast_hide');
 });
@@ -238,20 +242,26 @@ async function checkForUpdate() {
     const later = JSON.parse(localStorage.getItem('rotae.later') || '{}');
     if (later.version === update.version && Date.now() - later.at < 3 * DAY) return;
     if ([...jobs.values()].some((j) => j.state === 'running')) return setTimeout(checkForUpdate, 60000);
-    pending = update;
-    document.body.classList.add('update');
-    $('state').textContent = 'Update';
-    $('state').className = 'tag';
-    $('title').textContent = `Rotae ${update.version} is ready to install`;
-    clearTimeout(hideTimer);
-    invoke('toast_show');
+    offer(update);
   } catch {
     // offline or GitHub unreachable: try again tomorrow
   }
 }
 
+/** Shows the update card (again, after a job's card had taken its place). */
+function offer(update) {
+  pending = update;
+  document.body.classList.add('update');
+  $('state').textContent = 'Update';
+  $('state').className = 'tag';
+  $('title').textContent = `Rotae ${update.version} is ready to install`;
+  clearTimeout(hideTimer);
+  invoke('toast_show');
+}
+
 $('later').addEventListener('click', () => {
   if (pending) localStorage.setItem('rotae.later', JSON.stringify({ version: pending.version, at: Date.now() }));
+  pending = null;
   document.body.classList.remove('update');
   invoke('toast_hide');
 });

@@ -359,7 +359,7 @@ async function paste() {
 }
 
 addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.key.toLowerCase() === 'v' && !(e.target instanceof HTMLInputElement)) paste();
+  if (e.ctrlKey && e.key.toLowerCase() === 'v' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target.isContentEditable)) paste();
   if (e.key === 'Escape') getCurrentWindow().hide();
 });
 
