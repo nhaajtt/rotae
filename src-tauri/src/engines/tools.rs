@@ -30,7 +30,7 @@ fn exe(name: &str) -> PathBuf {
         }
     }
     // the FFmpeg add-on (Settings › Add-ons) keeps both programs in one bin folder
-    if let Some(p) = super::security::tool_path("ffmpeg").and_then(|f| f.parent().map(|d| d.join(&file))).filter(|p| p.exists()) {
+    if let Some(p) = super::addons::tool_path("ffmpeg").and_then(|f| f.parent().map(|d| d.join(&file))).filter(|p| p.exists()) {
         return p;
     }
     PathBuf::from(file)
@@ -80,7 +80,7 @@ fn probe(args: &[&str], file: &Path) -> Result<String> {
         .args(args)
         .arg(file)
         .output()
-        .with_context(|| super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
+        .with_context(|| super::addons::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
@@ -350,7 +350,7 @@ pub fn ffmpeg_in(dir: Option<&Path>, args: &[String], total: f64, progress: &dyn
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| anyhow!(super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons")))?;
+        .map_err(|_| anyhow!(super::addons::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons")))?;
 
     // ffmpeg reports progress twice a second; silence for minutes means it is stuck
     let dog = Watchdog::new(child.id(), Duration::from_secs(300));

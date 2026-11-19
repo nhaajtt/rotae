@@ -1,7 +1,7 @@
 //! More PDF tools: rotate, rearrange pages, page numbers, watermark, signature stamp,
 //! text (with OCR for scanned pages), images out, and passwords (through qpdf).
 
-use super::{note, pdf, security, Action, Progress};
+use super::{addons, note, pdf, Action, Progress};
 use crate::naming::{out_dir, out_path, temp_file, unique};
 use anyhow::{bail, Context, Result};
 use base64::Engine;
@@ -288,7 +288,7 @@ fn unicode_font(doc: &mut PdfDocument) -> Result<PdfFontToken> {
 // --- Passwords: qpdf (downloaded in Settings › Add-ons) --------------------------------------
 
 fn qpdf() -> Result<PathBuf> {
-    security::tool_path("qpdf").with_context(|| security::missing("qpdf", "Passwords need the qpdf add-on: Settings › Add-ons"))
+    addons::tool_path("qpdf").with_context(|| addons::missing("qpdf", "Passwords need the qpdf add-on: Settings › Add-ons"))
 }
 
 fn protect(src: &Path, password: &str) -> Result<PathBuf> {

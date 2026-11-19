@@ -220,12 +220,7 @@ fn run(app: &AppHandle, job: Job) {
     crate::log(&format!("job {} done: {outputs:?} errors: {errors:?}", job.id));
     crate::watch::made(&outputs);
     let notes = engines::take_notes();
-    let note = (!notes.is_empty()).then(|| {
-        notes.join(
-            "
-",
-        )
-    });
+    let note = (!notes.is_empty()).then(|| notes.join("\n"));
     let state = if done == 0 { "error" } else { "done" };
     remember(
         app,

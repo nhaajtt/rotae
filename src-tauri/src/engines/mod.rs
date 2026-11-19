@@ -1,3 +1,4 @@
+pub mod addons;
 pub mod ai;
 pub mod dev;
 pub mod docx;

@@ -422,8 +422,8 @@ fn encode_slideshow(pngs: &[PathBuf], first: &Path, seconds: f64, w: u32, h: u32
 
 /// Speech to subtitles with whisper.cpp (downloaded in Settings). Optionally burnt into the video.
 fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>> {
-    let cli = super::security::tool_path("whisper").with_context(|| super::security::missing("whisper", "Speech to text isn't installed yet: Settings › Speech to text"))?;
-    let model = super::security::whisper_model().context("the speech model is missing: Settings › Speech to text")?;
+    let cli = super::addons::tool_path("whisper").with_context(|| super::addons::missing("whisper", "Speech to text isn't installed yet: Settings › Speech to text"))?;
+    let model = super::addons::whisper_model().context("the speech model is missing: Settings › Speech to text")?;
     let dur = tools::duration(src);
     let wav = temp_file("wav");
     tools::ffmpeg(&s(&["-i", &src.to_string_lossy(), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", &wav.to_string_lossy()]), dur, &|p| progress(p * 0.1))?;
