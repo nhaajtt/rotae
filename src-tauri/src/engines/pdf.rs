@@ -105,8 +105,7 @@ pub fn run(src: &Path, action: &Action, progress: Progress) -> Result<Vec<PathBu
                 if i == 0 {
                     let (w, h) = (im.width() as f64, im.height() as f64);
                     for b in boxes {
-                        let (x0, y0) = ((b[0] * w) as u32, (b[1] * h) as u32);
-                        let (x1, y1) = (((b[0] + b[2]) * w).min(w) as u32, ((b[1] + b[3]) * h).min(h) as u32);
+                        let (x0, y0, x1, y1) = super::image::pixel_box(b, w, h);
                         for y in y0..y1 {
                             for x in x0..x1 {
                                 im.put_pixel(x, y, Rgba([0, 0, 0, 255]));

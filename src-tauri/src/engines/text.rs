@@ -422,10 +422,12 @@ fn parse_json(text: &str) -> Result<serde_json::Value> {
     Ok(v)
 }
 
-/// RFC 4180-style parsing: quoted fields may hold separators, quotes ("") and newlines.
-fn parse_csv(text: &str, sep: char) -> Vec<Vec<String>> {
+/// RFC 4180-style parsing: quoted fields may hold separators, quotes ("") and newlines. A quote
+/// only opens a quoted field at its very start, so `12" pipe` is a plain value.
+pub(crate) fn parse_csv(text: &str, sep: char) -> Vec<Vec<String>> {
     let (mut rows, mut row, mut field) = (Vec::new(), Vec::new(), String::new());
-    let mut quoted = false;
+    // quoted: inside "…"; fresh: nothing of this field read yet
+    let (mut quoted, mut fresh) = (false, true);
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
         match c {
@@ -433,15 +435,23 @@ fn parse_csv(text: &str, sep: char) -> Vec<Vec<String>> {
                 field.push('"');
                 chars.next();
             }
-            '"' => quoted = !quoted,
-            c if c == sep && !quoted => row.push(std::mem::take(&mut field)),
+            '"' if quoted => quoted = false,
+            '"' if fresh => quoted = true,
+            c if c == sep && !quoted => {
+                row.push(std::mem::take(&mut field));
+                fresh = true;
+                continue;
+            }
             '\r' if !quoted => {}
             '\n' if !quoted => {
                 row.push(std::mem::take(&mut field));
                 rows.push(std::mem::take(&mut row));
+                fresh = true;
+                continue;
             }
             c => field.push(c),
         }
+        fresh = false;
     }
     if !field.is_empty() || !row.is_empty() {
         row.push(field);

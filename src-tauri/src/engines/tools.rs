@@ -276,7 +276,7 @@ impl Watchdog {
         std::thread::spawn(move || {
             while !d.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(250));
-                let quiet_for = start.elapsed().as_millis() as u64 - l.load(Ordering::Relaxed);
+                let quiet_for = (start.elapsed().as_millis() as u64).saturating_sub(l.load(Ordering::Relaxed));
                 if !d.load(Ordering::Relaxed) && quiet_for > idle.as_millis() as u64 {
                     f.store(true, Ordering::Relaxed);
                     kill_tree(pid);
