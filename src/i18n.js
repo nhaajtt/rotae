@@ -21,7 +21,7 @@ const VI = {
   Minify: 'Thu gọn', 'App .ico': 'Icon app', Favicons: 'Favicon web', 'Other…': 'Khác…', Word: 'Word',
   'drop here': 'thả vào đây', 'not': 'không', 'supported': 'hỗ trợ', '⚠ fake type': '⚠ giả đuôi',
   // hub
-  Actions: 'Thao tác', Wheel: 'Vòng tròn', Settings: 'Cài đặt', Rename: 'Đổi tên', Recipes: 'Công thức', Confirm: 'Xác nhận',
+  Actions: 'Thao tác', 'Search actions': 'Tìm thao tác', Wheel: 'Vòng tròn', Settings: 'Cài đặt', Rename: 'Đổi tên', Recipes: 'Công thức', Confirm: 'Xác nhận',
   'Drop files here': 'Thả file vào đây', 'Paste': 'Dán', 'Nothing matches.': 'Không có kết quả.', 'opens app': 'mở app', editor: 'trình sửa',
   'Drop files here, or choose "More" on the wheel to see everything you can do with them.':
     'Thả file vào đây, hoặc chọn "Thêm" trên vòng tròn để xem mọi thao tác.',
@@ -133,7 +133,7 @@ const VI = {
   "Check the internet connection (and VPN), then try again.": "Kiểm tra kết nối mạng (và VPN) rồi thử lại.",
   "Something went wrong that Rotae doesn’t recognise.": "Có lỗi mà Rotae chưa nhận ra.",
   "Try once more. If it keeps failing, report it: the app and Windows versions are filled in for you.": "Thử lại một lần nữa. Nếu vẫn lỗi, hãy báo lỗi: phiên bản app và Windows được điền sẵn.",
-  'You have the latest version.': 'Bạn đang dùng bản mới nhất.', Working: 'Đang làm', Done: 'Xong', Failed: 'Lỗi', Undo: 'Hoàn tác', Undone: 'Đã hoàn tác', 'Show ›': 'Mở ›', '⠿ Drag': '⠿ Kéo', done: 'xong', Close: 'Đóng',
+  'You have the latest version.': 'Bạn đang dùng bản mới nhất.', Working: 'Đang làm', Done: 'Xong', Undo: 'Hoàn tác', Undone: 'Đã hoàn tác', 'Show ›': 'Mở ›', '⠿ Drag': '⠿ Kéo', done: 'xong', Close: 'Đóng',
   '⠿ Drag all': '⠿ Kéo tất cả', Clear: 'Xoá hết', Open: 'Mở', 'Actions ⌘': 'Thao tác ⌘',
   'Drop files here to keep them for later, from any folder. Drag them out when you need them.':
     'Thả file vào đây để giữ tạm, từ bất kỳ thư mục nào. Cần thì kéo ra.',
@@ -220,7 +220,7 @@ const VI = {
   'Use a time like 1:05 or 0:05.5.': 'Nhập thời gian dạng 1:05 hoặc 0:05.5.', 'Start must be before the end.': 'Điểm bắt đầu phải trước điểm kết thúc.',
   'End must be after the start.': 'Điểm kết thúc phải sau điểm bắt đầu.',
   Kind: 'Loại', Modified: 'Sửa lần cuối', Items: 'Số mục', Folder: 'Thư mục', File: 'File',
-  'Open Rotae': 'Mở Rotae', 'Next:': 'Tiếp theo:', Reset: 'Đặt lại', Shelf: 'Kệ tạm',
+  'Open Rotae': 'Mở Rotae', 'Next:': 'Tiếp theo:', Reset: 'Đặt lại', 
   'Hide (files stay)': 'Ẩn (file vẫn còn trên kệ)', 'Drag every file out at once': 'Kéo tất cả file ra cùng lúc',
   'Drag the result into another app': 'Kéo kết quả sang app khác', 'Move the new files to the Recycle Bin': 'Chuyển file mới vào Thùng rác',
   'Report this problem on GitHub': 'Báo lỗi này trên GitHub', 'Copying path': 'Đang chép đường dẫn', 'Copying text': 'Đang chép chữ',
@@ -334,7 +334,7 @@ const skip = (n) => n.parentElement?.closest('[translate="no"], .chip, .mono, pr
 
 // What each node said before it was translated, so English can come back without a reload.
 const was = new WeakMap(); // text node → { en, vi }
-const wasAttr = new WeakMap(); // element → { placeholder: { en, vi }, title: { en, vi } }
+const wasAttr = new WeakMap(); // element → { placeholder: { en, vi }, title: …, ariaLabel: … }
 
 function text(n) {
   const v = t(n.nodeValue);
@@ -353,14 +353,19 @@ function attr(e, k) {
   e[k] = v;
 }
 
+const ATTRS = '[placeholder],[title],[aria-label]';
+/** Elements under root with translatable attributes, root itself included (an <input> that
+ * was just added is its own subtree). */
+const withAttrs = (root) => (root.querySelectorAll ? [...(root.matches?.(ATTRS) ? [root] : []), ...root.querySelectorAll(ATTRS)] : []);
+
 function walk(root) {
   const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = it.nextNode(); n; n = it.nextNode()) if (!skip(n)) text(n);
-  if (root.querySelectorAll) {
-    for (const e of root.querySelectorAll('[placeholder],[title]')) {
-      if (e.placeholder) attr(e, 'placeholder');
-      if (e.title && !skip(e.firstChild || e)) attr(e, 'title');
-    }
+  for (const e of withAttrs(root)) {
+    if (e.placeholder) attr(e, 'placeholder');
+    if (e.title && !skip(e.firstChild || e)) attr(e, 'title');
+    // what a screen reader says for icon buttons and the action list
+    if (e.ariaLabel) attr(e, 'ariaLabel');
   }
 }
 
@@ -371,7 +376,7 @@ function restore(root) {
     const w = was.get(n);
     if (w && n.nodeValue === w.vi) n.nodeValue = w.en;
   }
-  for (const e of root.querySelectorAll('[placeholder],[title]')) {
+  for (const e of withAttrs(root)) {
     const m = wasAttr.get(e);
     for (const k in m) if (e[k] === m[k].vi) e[k] = m[k].en;
   }

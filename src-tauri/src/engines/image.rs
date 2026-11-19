@@ -266,10 +266,7 @@ pub fn run(src: &Path, action: &Action, progress: Progress) -> Result<Vec<PathBu
             let mut img = open(src)?.to_rgba8();
             let (w, h) = (img.width() as f64, img.height() as f64);
             for b in boxes {
-                let x0 = (b[0] * w).max(0.0) as u32;
-                let y0 = (b[1] * h).max(0.0) as u32;
-                let x1 = ((b[0] + b[2]) * w).min(w) as u32;
-                let y1 = ((b[1] + b[3]) * h).min(h) as u32;
+                let (x0, y0, x1, y1) = pixel_box(b, w, h);
                 for y in y0..y1 {
                     for x in x0..x1 {
                         img.put_pixel(x, y, Rgba([0, 0, 0, 255]));
@@ -484,4 +481,14 @@ fn add_background(img: &DynamicImage, bg: [u8; 3], padding: f64, radius: f64, sh
         }
     }
     Ok(DynamicImage::ImageRgba8(canvas))
+}
+
+/// A redaction box (fractions of the picture) as pixel bounds that cover every pixel the box
+/// touches, so no partly covered column or row at the right or bottom edge stays readable.
+pub(crate) fn pixel_box(b: &[f64; 4], w: f64, h: f64) -> (u32, u32, u32, u32) {
+    let x0 = (b[0] * w).clamp(0.0, w).floor() as u32;
+    let y0 = (b[1] * h).clamp(0.0, h).floor() as u32;
+    let x1 = ((b[0] + b[2]) * w).clamp(0.0, w).ceil() as u32;
+    let y1 = ((b[1] + b[3]) * h).clamp(0.0, h).ceil() as u32;
+    (x0, y0, x1, y1)
 }

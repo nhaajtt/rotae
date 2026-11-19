@@ -56,12 +56,7 @@ pub(crate) fn decode_base64(raw: &str) -> Result<Vec<u8>> {
     let body = raw.trim().rsplit_once("base64,").map(|(_, b)| b).unwrap_or(raw.trim());
     let clean: String = body.chars().filter(|c| !c.is_whitespace()).collect();
     let bare = clean.trim_end_matches('=');
-    STANDARD
-        .decode(&clean)
-        .or_else(|_| STANDARD_NO_PAD.decode(bare))
-        .or_else(|_| URL_SAFE_NO_PAD.decode(bare))
-        .ok()
-        .context("not valid Base64")
+    STANDARD.decode(&clean).or_else(|_| STANDARD_NO_PAD.decode(bare)).or_else(|_| URL_SAFE_NO_PAD.decode(bare)).ok().context("not valid Base64")
 }
 
 pub fn path_as(p: &Path, style: &str) -> String {
@@ -82,7 +77,11 @@ pub fn path_as(p: &Path, style: &str) -> String {
                     _ => format!("%{b:02X}"),
                 })
                 .collect();
-            if enc.starts_with('/') { format!("file://{enc}") } else { format!("file:///{enc}") }
+            if enc.starts_with('/') {
+                format!("file://{enc}")
+            } else {
+                format!("file:///{enc}")
+            }
         }
         "markdown" => {
             let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -95,16 +94,15 @@ pub fn path_as(p: &Path, style: &str) -> String {
 /// Two files side by side in VS Code, or a unified .diff file next to the first one.
 fn diff(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let [a, b] = paths else { bail!("pick exactly two files to compare") };
-    if !cfg!(test) && crate::apps::launch_id("vscode", &format!("--diff \"{}\" \"{}\"", a.display(), b.display())).is_ok() {
+    // the paths go into one quoted argument string, so a name holding a quote (possible on
+    // Linux) could smuggle extra VS Code options in; those pairs use the built-in diff instead
+    let quotable = !a.to_string_lossy().contains('"') && !b.to_string_lossy().contains('"');
+    if !cfg!(test) && quotable && crate::apps::launch_id("vscode", &format!("--diff \"{}\" \"{}\"", a.display(), b.display())).is_ok() {
         note("Opened the comparison in VS Code");
         return Ok(vec![]);
     }
     let (ta, tb) = (std::fs::read_to_string(a).context("not a text file")?, std::fs::read_to_string(b).context("not a text file")?);
-    let text = similar::TextDiff::from_lines(&ta, &tb)
-        .unified_diff()
-        .context_radius(3)
-        .header(&a.display().to_string(), &b.display().to_string())
-        .to_string();
+    let text = similar::TextDiff::from_lines(&ta, &tb).unified_diff().context_radius(3).header(&a.display().to_string(), &b.display().to_string()).to_string();
     if text.is_empty() {
         note("The two files are identical");
         return Ok(vec![]);

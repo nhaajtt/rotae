@@ -18,23 +18,35 @@ use windows_sys::Win32::{
     UI::{
         Input::KeyboardAndMouse::{GetAsyncKeyState, VK_SHIFT},
         WindowsAndMessaging::{
-            CallNextHookEx, GetAncestor, GetMessageW, GetWindowThreadProcessId, SetWindowPos, SetWindowsHookExW, WindowFromPoint,
-            GA_ROOT, HWND_TOPMOST, KBDLLHOOKSTRUCT, MSG, MSLLHOOKSTRUCT, SWP_NOACTIVATE, SWP_SHOWWINDOW, WH_KEYBOARD_LL, WH_MOUSE_LL,
-            WM_KEYDOWN, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_SYSKEYDOWN,
+            CallNextHookEx, GetAncestor, GetMessageW, GetWindowThreadProcessId, SetWindowPos, SetWindowsHookExW, WindowFromPoint, GA_ROOT, HWND_TOPMOST, KBDLLHOOKSTRUCT, MSG,
+            MSLLHOOKSTRUCT, SWP_NOACTIVATE, SWP_SHOWWINDOW, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_SYSKEYDOWN,
         },
     },
 };
 
 pub enum HookEvent {
     /// A drag passed the threshold while Shift was held; `ox, oy` = where it started.
-    ShiftDrag { ox: i32, oy: i32 },
+    ShiftDrag {
+        ox: i32,
+        oy: i32,
+    },
     /// Cursor position while a Shift-drag is in progress.
-    Moved { x: i32, y: i32 },
-    Released { x: i32, y: i32 },
+    Moved {
+        x: i32,
+        y: i32,
+    },
+    Released {
+        x: i32,
+        y: i32,
+    },
     /// 1–8 picks a wedge, 0 = Escape (cancel), during a Shift-drag.
-    Key { n: u32 },
+    Key {
+        n: u32,
+    },
     /// Ctrl+Space in File Explorer or on the desktop: preview the selected file.
-    Peek { root: isize },
+    Peek {
+        root: isize,
+    },
 }
 
 static TX: OnceLock<Sender<HookEvent>> = OnceLock::new();
@@ -111,10 +123,12 @@ unsafe fn explorer_focused() -> Option<HWND> {
     }
     let mut info: GUITHREADINFO = std::mem::zeroed();
     info.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
-    if GetGUIThreadInfo(GetWindowThreadProcessId(fg, std::ptr::null_mut()), &mut info) != 0 && !info.hwndFocus.is_null()
-        && (["Edit", "RichEdit20W", "RICHEDIT50W"].contains(&class(info.hwndFocus).as_str()) || !info.hwndCaret.is_null()) {
-            return None;
-        }
+    if GetGUIThreadInfo(GetWindowThreadProcessId(fg, std::ptr::null_mut()), &mut info) != 0
+        && !info.hwndFocus.is_null()
+        && (["Edit", "RichEdit20W", "RICHEDIT50W"].contains(&class(info.hwndFocus).as_str()) || !info.hwndCaret.is_null())
+    {
+        return None;
+    }
     Some(fg)
 }
 
@@ -154,21 +168,13 @@ unsafe extern "system" fn key_proc(code: i32, wparam: WPARAM, lparam: LPARAM) ->
 /// the hook thread top priority.
 unsafe fn keep_fast() {
     use windows_sys::Win32::System::Threading::{
-        GetCurrentProcess, GetCurrentThread, SetProcessInformation, SetThreadInformation, SetThreadPriority, ProcessPowerThrottling,
-        ThreadPowerThrottling, PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE,
-        THREAD_POWER_THROTTLING_CURRENT_VERSION, THREAD_POWER_THROTTLING_EXECUTION_SPEED, THREAD_POWER_THROTTLING_STATE, THREAD_PRIORITY_TIME_CRITICAL,
+        GetCurrentProcess, GetCurrentThread, ProcessPowerThrottling, SetProcessInformation, SetThreadInformation, SetThreadPriority, ThreadPowerThrottling,
+        PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE, THREAD_POWER_THROTTLING_CURRENT_VERSION,
+        THREAD_POWER_THROTTLING_EXECUTION_SPEED, THREAD_POWER_THROTTLING_STATE, THREAD_PRIORITY_TIME_CRITICAL,
     };
-    let p = PROCESS_POWER_THROTTLING_STATE {
-        Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
-        ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
-        StateMask: 0,
-    };
+    let p = PROCESS_POWER_THROTTLING_STATE { Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION, ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED, StateMask: 0 };
     SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &p as *const _ as _, std::mem::size_of_val(&p) as u32);
-    let t = THREAD_POWER_THROTTLING_STATE {
-        Version: THREAD_POWER_THROTTLING_CURRENT_VERSION,
-        ControlMask: THREAD_POWER_THROTTLING_EXECUTION_SPEED,
-        StateMask: 0,
-    };
+    let t = THREAD_POWER_THROTTLING_STATE { Version: THREAD_POWER_THROTTLING_CURRENT_VERSION, ControlMask: THREAD_POWER_THROTTLING_EXECUTION_SPEED, StateMask: 0 };
     SetThreadInformation(GetCurrentThread(), ThreadPowerThrottling, &t as *const _ as _, std::mem::size_of_val(&t) as u32);
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 }
@@ -235,8 +241,6 @@ pub fn show_no_activate(hwnd: *mut c_void, x: i32, y: i32, w: i32, h: i32) {
         SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 }
-
-
 
 /// Frosted glass on the small capture: three box-blur passes (close to a Gaussian), then
 /// more colour and a touch of brightness, like light through tinted glass.

@@ -4,20 +4,22 @@ mod engines;
 #[cfg(windows)]
 mod explorer;
 mod jobs;
+#[cfg(test)]
+mod lib_tests;
 mod naming;
 mod platform;
 mod settings;
 mod share;
 mod shell;
-mod watch;
 mod tray;
+mod watch;
 #[cfg(windows)]
 mod win;
 mod windows;
-#[cfg(target_os = "linux")]
-mod x11drag;
 #[cfg(windows)]
 mod winrt;
+#[cfg(target_os = "linux")]
+mod x11drag;
 
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
@@ -47,13 +49,23 @@ pub fn log(msg: &str) {
 /// Opens a help link from a failure's fix. Only these sites, so a message can never open anything else.
 #[tauri::command]
 async fn open_link(url: String) -> Result<(), String> {
-    const ALLOWED: [&str; 3] = ["https://www.libreoffice.org/", "https://www.microsoft.com/", "https://github.com/nhaajtt/rotae/"];
-    // the repo itself (no slash) is allowed too, but not look-alikes such as …/rotae-evil
-    let ok = url == "https://github.com/nhaajtt/rotae" || ALLOWED.iter().any(|a| url.starts_with(a));
-    if !ok || url.chars().any(|c| c.is_whitespace() || c.is_control() || c == '"') {
+    if !link_allowed(&url) {
         return Err("link not allowed".into());
     }
     engines::security::open_url(&url).map_err(|e| e.to_string())
+}
+
+/// Links the windows may open: download pages of LibreOffice and Office, and this app's GitHub
+/// pages. The path may not climb out of its prefix ("..", "%2e%2e", backslashes), and only
+/// plain URL characters are accepted, so nothing reaches the browser or shell half-escaped.
+fn link_allowed(url: &str) -> bool {
+    const ALLOWED: [&str; 3] = ["https://www.libreoffice.org/", "https://www.microsoft.com/", "https://github.com/nhaajtt/rotae/"];
+    // the repo itself (no slash) is allowed too, but not look-alikes such as …/rotae-evil
+    let prefixed = url == "https://github.com/nhaajtt/rotae" || ALLOWED.iter().any(|a| url.starts_with(a));
+    let plain = url.len() <= 2048 && url.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._~:/?#[]@!&'()*+,;=%".contains(&b));
+    let path = url.split(['?', '#']).next().unwrap_or("").to_ascii_lowercase();
+    let climbs = path.split('/').any(|s| s == "." || s == "..") || path.contains("%2e") || path.contains("%2f") || path.contains("%5c") || path.contains('@');
+    prefixed && plain && !climbs
 }
 
 /// Opens the log folder in Explorer.
@@ -202,8 +214,12 @@ pub fn run() {
     platform::prepare_display();
     std::panic::set_hook(Box::new(|p| log(&format!("panic: {p}"))));
     log(&format!("start {}", env!("CARGO_PKG_VERSION")));
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _| opened_with(app, argv)))
+    let mut builder = tauri::Builder::default();
+    // a test copy with its own data folder runs next to the installed app instead of handing over to it
+    if platform::test_dir().is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _| opened_with(app, argv)));
+    }
+    builder
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -231,13 +247,13 @@ pub fn run() {
             open_link,
             windows::open_hub,
             windows::hub_take,
-            engines::security::tools_status,
-            engines::security::tools_install,
+            engines::addons::tools_status,
+            engines::addons::tools_install,
             engines::security::sandbox_ok,
             engines::office::office_ok,
             engines::pdf::pdf_thumbs,
             engines::pentest::pentest_tools,
-            shell::trash,
+            jobs::trash,
             share::share_lan,
             share::share_r2,
             watch::folder_exists,
@@ -259,7 +275,11 @@ pub fn run() {
             engines::tools::set_bin_dir(bin_dir(app));
             app.manage(jobs::start(handle.clone()));
             windows::create(&handle)?;
-            tray::create(&handle)?;
+            // a desktop without a tray (GNOME without the AppIndicator extension) still gets the
+            // wheel, the hub (open Rotae again) and everything else
+            if let Err(e) = tray::create(&handle) {
+                log(&format!("tray: {e}"));
+            }
             #[cfg(windows)]
             // debug aid: ROTAE_DEMO=<file> shows the menu for that file in the middle of the screen
             #[cfg(debug_assertions)]
@@ -270,7 +290,10 @@ pub fn run() {
                     windows::show_overlay(&h, 1000, 600, &[f.into()]);
                     std::thread::sleep(std::time::Duration::from_millis(500));
                     // ROTAE_DEMO_HOVER=dx,dy points somewhere else than the top wedge
-                    let (dx, dy) = std::env::var("ROTAE_DEMO_HOVER").ok().and_then(|v| v.split_once(',').and_then(|(a, b)| Some((a.trim().parse().ok()?, b.trim().parse().ok()?)))).unwrap_or((0, -100));
+                    let (dx, dy) = std::env::var("ROTAE_DEMO_HOVER")
+                        .ok()
+                        .and_then(|v| v.split_once(',').and_then(|(a, b)| Some((a.trim().parse().ok()?, b.trim().parse().ok()?))))
+                        .unwrap_or((0, -100));
                     windows::overlay_pointer(&h, 1000 + dx, 600 + dy, false);
                     if std::env::var_os("ROTAE_DEMO_DROP").is_some() {
                         std::thread::sleep(std::time::Duration::from_secs(4));
@@ -292,7 +315,9 @@ pub fn run() {
             watch::start(handle.clone());
             if first {
                 // first launch: the app lives in the tray, so say hello and show how it works
-                let _ = autostart_on_first_run(&handle);
+                if platform::test_dir().is_none() {
+                    let _ = autostart_on_first_run(&handle);
+                }
                 let _ = windows::open_hub_now(handle.clone(), vec![], "welcome".into(), None);
             }
             opened_with(&handle, std::env::args().collect());

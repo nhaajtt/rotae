@@ -66,7 +66,11 @@ pub fn read_capped(p: &Path, max_mb: u64) -> Result<Vec<u8>> {
 /// tar reads a name starting with `-` as an option and one starting with `@` as "add this
 /// archive's contents", so those get a `./` in front.
 pub(crate) fn tar_member(name: &str) -> String {
-    if name.starts_with(['-', '@']) { format!("./{name}") } else { name.to_string() }
+    if name.starts_with(['-', '@']) {
+        format!("./{name}")
+    } else {
+        name.to_string()
+    }
 }
 
 /// bsdtar (zip, tar, gz, xz, bz2, 7z, rar): Windows ships it in System32, macOS in /usr/bin,
@@ -96,7 +100,11 @@ fn zip(paths: &[PathBuf]) -> Result<PathBuf> {
     let first = &paths[0];
     let dir = first.parent().context("no folder")?;
     let base = if paths.len() == 1 {
-        if first.is_dir() { name(first) } else { stem(first) }
+        if first.is_dir() {
+            name(first)
+        } else {
+            stem(first)
+        }
     } else {
         dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "Archive".into())
     };
@@ -294,7 +302,8 @@ pub fn parse_pe(d: &[u8]) -> Option<Pe> {
                             let v = if is64 { d.get(t..t + 8).map(|b| u64::from_le_bytes(b.try_into().unwrap())) } else { u32_at(d, t).map(u64::from) };
                             let Some(v) = v.filter(|&v| v != 0) else { break };
                             let ordinal = if is64 { v >> 63 == 1 } else { v >> 31 == 1 };
-                            let f = if ordinal { format!("ord{}", v & 0xffff) } else { to_off(v as u32 & 0x7fff_ffff).and_then(|n| cstr(n + 2)).unwrap_or_default().to_lowercase() };
+                            let f =
+                                if ordinal { format!("ord{}", v & 0xffff) } else { to_off(v as u32 & 0x7fff_ffff).and_then(|n| cstr(n + 2)).unwrap_or_default().to_lowercase() };
                             functions.push(format!("{lib}.{f}"));
                             t += w;
                         }

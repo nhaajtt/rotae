@@ -153,13 +153,8 @@ mod seal {
 
     /// Runs secret-tool, giving up after a few seconds (a locked keyring can wait for a prompt).
     fn secret_tool(args: &[&str], input: Option<&str>) -> Option<Vec<u8>> {
-        let mut child = Command::new("secret-tool")
-            .args(args)
-            .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()?;
+        let mut child =
+            Command::new("secret-tool").args(args).stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
         if let (Some(text), Some(mut stdin)) = (input, child.stdin.take()) {
             let _ = stdin.write_all(text.as_bytes());
         }
@@ -249,7 +244,7 @@ fn usable(v: &str) -> &str {
 pub struct Store(pub Mutex<Settings>);
 
 fn file(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_config_dir().ok().map(|d| d.join("settings.json"))
+    crate::platform::config_dir(app).map(|d| d.join("settings.json"))
 }
 
 /// True before the settings file has ever been written (first launch).

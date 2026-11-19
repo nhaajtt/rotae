@@ -155,7 +155,31 @@ npm run tauri dev               # run
 npm run tauri build             # installer in src-tauri/target/release/bundle/nsis
 ```
 
-Engine tests (need `ffmpeg` on PATH): `cd src-tauri && cargo test --lib`.
+### Checks and tests
+
+`npm run check` runs everything CI runs: ESLint, the front-end unit tests, the web build, the UI
+flow tests, then `cargo fmt --check`, Clippy and the engine tests (`npm run check -- --fast` skips the
+Rust part). One at a time:
+
+```sh
+npm run lint          # ESLint (correctness rules)
+npm test              # tests/unit: wheel menus, error help, translations (golden files)
+npm run test:update   # rewrite the golden files after an intended change, then review the diff
+npm run test:ui       # tests/ui: every window in headless Chrome with a fake backend
+cd src-tauri && cargo test --lib   # engine tests; need ffmpeg on PATH
+```
+
+The UI tests find Chrome or Edge by themselves; set `CHROME=/path/to/chrome` to pick one.
+
+### A second copy next to the installed one
+
+Set `ROTAE_DATA_DIR` to an empty folder to run a development copy that keeps its settings,
+history, logs, add-ons and web storage there, leaves the installed Rotae's data alone and doesn't
+hand over to it:
+
+```powershell
+$env:ROTAE_DATA_DIR = "$env:TEMP\rotae-dev"; npm run tauri dev
+```
 
 On Linux (Debian, Ubuntu, Kali):
 
@@ -176,12 +200,16 @@ src-tauri/src/
   windows.rs         windows: wheel, hub, toast, shelf, preview, editors
   jobs.rs            job queue
   engines/           image, media (FFmpeg), pdf, office, text, files, security, ai, dev
+  engines/addons.rs  add-ons downloaded on request (FFmpeg, analysis tools, AI models), checked by hash
   watch.rs           watched folders
   platform.rs        Linux and Windows differences (folders, autostart, display set-up)
   x11drag.rs         Linux: Shift while dragging opens the wheel (X11)
   engines/pentest.rs Pentest user mode: tool manifest, bubblewrap sandbox
   engines/recon.rs   engagement scope, findings, report
   share.rs           Wi-Fi sharing, R2 upload, Claude
+tests/unit/          front-end unit tests and their golden files
+tests/ui/            window flow tests (headless Chrome, fake Tauri backend in mock-tauri.js)
+scripts/check.mjs    npm run check
 mac/                 the Mac app (Swift Package, no Xcode project needed)
   Sources/Rotae/     menu bar app: wheel, hub, editors, jobs, phone inbox
   Sources/SDCore/    menus and actions shared by the app and the rotae command

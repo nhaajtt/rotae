@@ -30,7 +30,7 @@ fn exe(name: &str) -> PathBuf {
         }
     }
     // the FFmpeg add-on (Settings › Add-ons) keeps both programs in one bin folder
-    if let Some(p) = super::security::tool_path("ffmpeg").and_then(|f| f.parent().map(|d| d.join(&file))).filter(|p| p.exists()) {
+    if let Some(p) = super::addons::tool_path("ffmpeg").and_then(|f| f.parent().map(|d| d.join(&file))).filter(|p| p.exists()) {
         return p;
     }
     PathBuf::from(file)
@@ -57,27 +57,39 @@ pub fn quiet(program: &Path) -> Command {
     c
 }
 
+/// Protocols ffmpeg and ffprobe may open. A crafted media file (an HLS or concat playlist in
+/// disguise) can otherwise make them fetch URLs from the network while "converting" it.
+const LOCAL_ONLY: [&str; 2] = ["-protocol_whitelist", "file,pipe"];
+
+/// `-protocol_whitelist` applies to the input after it, so it goes in front of every `-i`.
+pub(crate) fn local_inputs(args: &[String]) -> Vec<String> {
+    let mut out = Vec::with_capacity(args.len() + 4);
+    for a in args {
+        if a == "-i" {
+            out.extend(LOCAL_ONLY.map(String::from));
+        }
+        out.push(a.clone());
+    }
+    out
+}
+
 fn probe(args: &[&str], file: &Path) -> Result<String> {
     let out = command("ffprobe")
         .args(["-v", "error"])
+        .args(LOCAL_ONLY)
         .args(args)
         .arg(file)
         .output()
-        .with_context(|| super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
+        .with_context(|| super::addons::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons"))?;
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 pub fn duration(file: &Path) -> f64 {
-    probe(&["-show_entries", "format=duration", "-of", "csv=p=0"], file)
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0.0)
+    probe(&["-show_entries", "format=duration", "-of", "csv=p=0"], file).ok().and_then(|s| s.parse().ok()).unwrap_or(0.0)
 }
 
 pub fn has_audio(file: &Path) -> bool {
-    probe(&["-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0"], file)
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
+    probe(&["-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0"], file).map(|s| !s.is_empty()).unwrap_or(false)
 }
 
 pub fn video_size(file: &Path) -> Option<(u32, u32)> {
@@ -192,7 +204,10 @@ pub fn adopt(pid: u32) {
         use windows_sys::Win32::{
             Foundation::{CloseHandle, HANDLE},
             System::{
-                JobObjects::{AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE},
+                JobObjects::{
+                    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                },
                 Threading::{OpenProcess, TerminateProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE},
             },
         };
@@ -261,7 +276,7 @@ impl Watchdog {
         std::thread::spawn(move || {
             while !d.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(250));
-                let quiet_for = start.elapsed().as_millis() as u64 - l.load(Ordering::Relaxed);
+                let quiet_for = (start.elapsed().as_millis() as u64).saturating_sub(l.load(Ordering::Relaxed));
                 if !d.load(Ordering::Relaxed) && quiet_for > idle.as_millis() as u64 {
                     f.store(true, Ordering::Relaxed);
                     kill_tree(pid);
@@ -330,12 +345,12 @@ pub fn ffmpeg_in(dir: Option<&Path>, args: &[String], total: f64, progress: &dyn
     }
     let mut child = cmd
         .args(["-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y"])
-        .args(args)
+        .args(local_inputs(args))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| anyhow!(super::security::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons")))?;
+        .map_err(|_| anyhow!(super::addons::missing("ffmpeg", "Video and audio need the FFmpeg add-on: Settings › Add-ons")))?;
 
     // ffmpeg reports progress twice a second; silence for minutes means it is stuck
     let dog = Watchdog::new(child.id(), Duration::from_secs(300));

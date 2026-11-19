@@ -12,22 +12,14 @@ const EVEN: &str = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
 /// Encoder arguments for a target container/format.
 fn codec_args(to: &str) -> Result<Vec<String>> {
     Ok(match to {
-        "mp4" | "m4v" | "mov" | "mkv" => s(&[
-            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-vf", EVEN,
-            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-        ]),
-        "webm" => s(&[
-            "-c:v", "libvpx-vp9", "-crf", "31", "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2",
-            "-c:a", "libopus", "-b:a", "128k",
-        ]),
+        "mp4" | "m4v" | "mov" | "mkv" => {
+            s(&["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-vf", EVEN, "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"])
+        }
+        "webm" => s(&["-c:v", "libvpx-vp9", "-crf", "31", "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-c:a", "libopus", "-b:a", "128k"]),
         "avi" => s(&["-c:v", "mpeg4", "-q:v", "3", "-c:a", "libmp3lame", "-q:a", "2"]),
-        "gif" => s(&[
-            "-an",
-            "-vf",
-            "fps=12,scale='min(720,iw)':-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4",
-            "-loop",
-            "0",
-        ]),
+        "gif" => {
+            s(&["-an", "-vf", "fps=12,scale='min(720,iw)':-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4", "-loop", "0"])
+        }
         "mp3" => s(&["-vn", "-c:a", "libmp3lame", "-q:a", "2"]),
         "m4a" | "aac" => s(&["-vn", "-c:a", "aac", "-b:a", "192k"]),
         "wav" => s(&["-vn", "-c:a", "pcm_s16le"]),
@@ -119,10 +111,7 @@ pub fn run(src: &Path, action: &Action, progress: Progress) -> Result<Vec<PathBu
                 Some(h) => format!("scale=-2:'min(ih,{h})',{EVEN}"),
                 None => EVEN.into(),
             };
-            args.extend(s(&[
-                "-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p", "-vf", &vf,
-                "-c:a", "aac", "-b:a", ab, "-movflags", "+faststart",
-            ]));
+            args.extend(s(&["-c:v", "libx264", "-preset", "medium", "-crf", crf, "-pix_fmt", "yuv420p", "-vf", &vf, "-c:a", "aac", "-b:a", ab, "-movflags", "+faststart"]));
             out_path(src, Some("Compressed"), "mp4")
         }
         Action::Compress { level } => {
@@ -147,8 +136,24 @@ pub fn run(src: &Path, action: &Action, progress: Progress) -> Result<Vec<PathBu
             // only picture, sound and subtitles: camera data tracks (timecode, GPS) can't be copied
             // into every container; per-stream tags (creation time…) go too
             args.extend(s(&[
-                "-map", "0:v?", "-map", "0:a?", "-map", "0:s?", "-map_metadata", "-1", "-map_metadata:s:v", "-1", "-map_metadata:s:a", "-1",
-                "-map_chapters", "-1", "-fflags", "+bitexact", "-c", "copy",
+                "-map",
+                "0:v?",
+                "-map",
+                "0:a?",
+                "-map",
+                "0:s?",
+                "-map_metadata",
+                "-1",
+                "-map_metadata:s:v",
+                "-1",
+                "-map_metadata:s:a",
+                "-1",
+                "-map_chapters",
+                "-1",
+                "-fflags",
+                "+bitexact",
+                "-c",
+                "copy",
             ]));
             out_path(src, Some("Clean"), &ext(src))
         }
@@ -283,7 +288,13 @@ fn target_size(src: &Path, mb: f64, progress: Progress) -> Result<Vec<PathBuf>> 
         bail!("{label} is too small for a video this long");
     }
     // lower the resolution when the bitrate can't carry it
-    let h = if video < 400.0 { 480 } else if video < 1200.0 { 720 } else { 1080 };
+    let h = if video < 400.0 {
+        480
+    } else if video < 1200.0 {
+        720
+    } else {
+        1080
+    };
     let vf = format!("scale=-2:'min(ih,{h})',{EVEN}");
     let log = PassLog(temp_file("log").to_string_lossy().into_owned());
     let log_s = log.0.as_str();
@@ -382,8 +393,25 @@ fn encode_slideshow(pngs: &[PathBuf], first: &Path, seconds: f64, w: u32, h: u32
     let vf = format!("scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p");
     let total = seconds * pngs.len() as f64;
     let args = s(&[
-        "-f", "concat", "-safe", "0", "-i", &list.to_string_lossy(), "-vf", &vf, "-t", &format!("{total:.3}"),
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-movflags", "+faststart", &out.to_string_lossy(),
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        &list.to_string_lossy(),
+        "-vf",
+        &vf,
+        "-t",
+        &format!("{total:.3}"),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "20",
+        "-movflags",
+        "+faststart",
+        &out.to_string_lossy(),
     ]);
     let r = tools::ffmpeg(&args, total, progress);
     let _ = std::fs::remove_file(&list);
@@ -394,8 +422,8 @@ fn encode_slideshow(pngs: &[PathBuf], first: &Path, seconds: f64, w: u32, h: u32
 
 /// Speech to subtitles with whisper.cpp (downloaded in Settings). Optionally burnt into the video.
 fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>> {
-    let cli = super::security::tool_path("whisper").with_context(|| super::security::missing("whisper", "Speech to text isn't installed yet: Settings › Speech to text"))?;
-    let model = super::security::whisper_model().context("the speech model is missing: Settings › Speech to text")?;
+    let cli = super::addons::tool_path("whisper").with_context(|| super::addons::missing("whisper", "Speech to text isn't installed yet: Settings › Speech to text"))?;
+    let model = super::addons::whisper_model().context("the speech model is missing: Settings › Speech to text")?;
     let dur = tools::duration(src);
     let wav = temp_file("wav");
     tools::ffmpeg(&s(&["-i", &src.to_string_lossy(), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", &wav.to_string_lossy()]), dur, &|p| progress(p * 0.1))?;
@@ -422,7 +450,19 @@ fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>
     let rel = srt_tmp.file_name().context("no name")?.to_string_lossy().into_owned();
     let out = out_path(src, Some("Subtitled"), "mp4");
     let mut args = s(&["-i", &src.to_string_lossy()]);
-    args.extend(with_vf(codec_args("mp4")?, format!("subtitles={rel}:force_style='FontName={},FontSize=20,Outline=1.2,Shadow=0',{EVEN}", if cfg!(windows) { "Segoe UI" } else if cfg!(target_os = "macos") { "Helvetica" } else { "Sans" })));
+    args.extend(with_vf(
+        codec_args("mp4")?,
+        format!(
+            "subtitles={rel}:force_style='FontName={},FontSize=20,Outline=1.2,Shadow=0',{EVEN}",
+            if cfg!(windows) {
+                "Segoe UI"
+            } else if cfg!(target_os = "macos") {
+                "Helvetica"
+            } else {
+                "Sans"
+            }
+        ),
+    ));
     args.push(out.to_string_lossy().into_owned());
     let r = tools::ffmpeg_in(Some(&dir), &args, dur, &|p| progress(0.7 + p * 0.3));
     let _ = std::fs::remove_file(&srt_tmp);
@@ -447,9 +487,7 @@ pub fn merge(paths: &[PathBuf], progress: Progress) -> Result<Vec<PathBuf>> {
         let (w, h) = ((w / 2 * 2).max(2), (h / 2 * 2).max(2));
         let mut next_input = n; // silent inputs are appended after the real files
         for (i, p) in paths.iter().enumerate() {
-            filter += &format!(
-                "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}];"
-            );
+            filter += &format!("[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v{i}];");
             let a = if tools::has_audio(p) {
                 format!("{i}:a")
             } else {
@@ -464,9 +502,7 @@ pub fn merge(paths: &[PathBuf], progress: Progress) -> Result<Vec<PathBuf>> {
         }
         filter += &format!("concat=n={n}:v=1:a=1[v][a]");
         args.extend(s(&["-filter_complex", &filter, "-map", "[v]", "-map", "[a]"]));
-        args.extend(s(&[
-            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-        ]));
+        args.extend(s(&["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]));
         out_path(&paths[0], Some("Merged"), "mp4")
     } else {
         for i in 0..n {
@@ -498,9 +534,6 @@ pub fn image_to_png(src: &Path) -> Result<PathBuf> {
 
 /// Encodes a PNG into AVIF with ffmpeg (libaom).
 pub fn png_to_avif(png: &Path, out: &Path, crf: u32) -> Result<()> {
-    let args = s(&[
-        "-i", &png.to_string_lossy(), "-c:v", "libaom-av1", "-still-picture", "1", "-crf", &crf.to_string(),
-        "-b:v", "0", "-cpu-used", "6", &out.to_string_lossy(),
-    ]);
+    let args = s(&["-i", &png.to_string_lossy(), "-c:v", "libaom-av1", "-still-picture", "1", "-crf", &crf.to_string(), "-b:v", "0", "-cpu-used", "6", &out.to_string_lossy()]);
     tools::ffmpeg(&args, 0.0, &|_| {})
 }

@@ -214,7 +214,11 @@ fn jwt(text: &str) -> Option<String> {
     let dec = |p: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(p.trim_end_matches('=')).ok().and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
     let (h, p) = (dec(parts[0])?, dec(parts[1])?);
     let alg = h["alg"].as_str().unwrap_or("?");
-    let mut out = format!("JSON Web Token (alg {alg}; the signature is not checked here)\n\nHeader:\n{}\n\nPayload:\n{}\n", serde_json::to_string_pretty(&h).ok()?, serde_json::to_string_pretty(&p).ok()?);
+    let mut out = format!(
+        "JSON Web Token (alg {alg}; the signature is not checked here)\n\nHeader:\n{}\n\nPayload:\n{}\n",
+        serde_json::to_string_pretty(&h).ok()?,
+        serde_json::to_string_pretty(&p).ok()?
+    );
     if alg.eq_ignore_ascii_case("none") {
         out.push_str("\nNote: alg \"none\" means the token is not signed at all.\n");
     }
@@ -229,7 +233,6 @@ pub struct Decoded {
     pub result: Vec<u8>,
     pub flags: Vec<String>,
 }
-
 
 pub fn decode(input: &[u8]) -> Result<Decoded> {
     if input.len() > MAX_INPUT {

@@ -52,16 +52,27 @@ const KEEP: usize = 200;
 static HISTORY: Mutex<Option<Vec<Record>>> = Mutex::new(None);
 
 fn history_file(app: &AppHandle) -> Option<PathBuf> {
-    use tauri::Manager;
-    app.path().app_config_dir().ok().map(|d| d.join("history.json"))
+    crate::platform::config_dir(app).map(|d| d.join("history.json"))
 }
 
 fn with_history<T>(app: &AppHandle, f: impl FnOnce(&mut Vec<Record>) -> T) -> T {
     let mut h = HISTORY.lock().unwrap_or_else(|e| e.into_inner());
-    let list = h.get_or_insert_with(|| {
-        history_file(app).and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
-    });
+    let list = h.get_or_insert_with(|| history_file(app).map(|p| load_history(&p)).unwrap_or_default());
     f(list)
+}
+
+/// The saved Activity list. One that can't be read (cut short, edited by hand) is renamed to
+/// history.broken.json rather than silently replaced by the next job's list.
+fn load_history(p: &std::path::Path) -> Vec<Record> {
+    let Ok(text) = std::fs::read_to_string(p) else { return Vec::new() };
+    match serde_json::from_str(&text) {
+        Ok(list) => list,
+        Err(e) => {
+            let _ = std::fs::rename(p, p.with_file_name("history.broken.json"));
+            crate::log(&format!("history: unreadable ({e}), kept as history.broken.json"));
+            Vec::new()
+        }
+    }
 }
 
 fn remember(app: &AppHandle, mut r: Record) {
@@ -176,8 +187,7 @@ fn crashed(app: &AppHandle, id: u64, title: &str, paths: &[PathBuf]) {
 
 fn run(app: &AppHandle, job: Job) {
     // Merge is one unit of work; everything else runs once per file.
-    let units: Vec<Vec<PathBuf>> =
-        if engines::is_group(&job.action) { vec![job.paths.clone()] } else { job.paths.iter().map(|p| vec![p.clone()]).collect() };
+    let units: Vec<Vec<PathBuf>> = if engines::is_group(&job.action) { vec![job.paths.clone()] } else { job.paths.iter().map(|p| vec![p.clone()]).collect() };
     let total = units.len();
     let mut outputs = Vec::new();
     let mut errors = Vec::new();
@@ -210,8 +220,7 @@ fn run(app: &AppHandle, job: Job) {
     crate::log(&format!("job {} done: {outputs:?} errors: {errors:?}", job.id));
     crate::watch::made(&outputs);
     let notes = engines::take_notes();
-    let note = (!notes.is_empty()).then(|| notes.join("
-"));
+    let note = (!notes.is_empty()).then(|| notes.join("\n"));
     let state = if done == 0 { "error" } else { "done" };
     remember(
         app,
@@ -220,7 +229,13 @@ fn run(app: &AppHandle, job: Job) {
             time: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
             title: job.title.clone(),
             files: job.paths.iter().map(|p| p.display().to_string()).collect(),
-            state: if errors.is_empty() { state.into() } else if done > 0 { "partial".into() } else { "error".into() },
+            state: if errors.is_empty() {
+                state.into()
+            } else if done > 0 {
+                "partial".into()
+            } else {
+                "error".into()
+            },
             outputs: outputs.iter().map(|p| p.display().to_string()).collect(),
             error: error.clone(),
             note: note.clone(),
@@ -231,7 +246,11 @@ fn run(app: &AppHandle, job: Job) {
 }
 
 #[tauri::command]
-pub async fn run_action(app: AppHandle, paths: Vec<String>, action: Action, title: String) -> Result<u64, String> {
+pub async fn run_action(app: AppHandle, window: tauri::WebviewWindow, paths: Vec<String>, action: Action, title: String) -> Result<u64, String> {
+    if !allowed_from(window.label(), &action) {
+        crate::log(&format!("run_action: {} may not run {}", window.label(), redacted(&action)));
+        return Err("not allowed from this window".into());
+    }
     crate::log(&format!("run_action {} on {paths:?}", redacted(&action)));
     queue(&app, paths.into_iter().map(PathBuf::from).collect(), action, title)
 }
@@ -241,7 +260,8 @@ pub fn queue(app: &AppHandle, paths: Vec<PathBuf>, action: Action, title: String
     use tauri::Manager;
     // ids keep growing across restarts so the Activity list never mixes two jobs up
     static ID: AtomicU64 = AtomicU64::new(0);
-    let _ = ID.compare_exchange(0, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(1), Ordering::SeqCst, Ordering::SeqCst);
+    let _ =
+        ID.compare_exchange(0, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(1), Ordering::SeqCst, Ordering::SeqCst);
     // folders only make sense for zip and copy-path
     let folders_ok = matches!(action, Action::Zip | Action::CopyPath | Action::CopyPathAs { .. });
     let paths: Vec<PathBuf> = paths.into_iter().filter(|p| p.is_file() || (folders_ok && p.is_dir())).collect();
@@ -252,6 +272,31 @@ pub fn queue(app: &AppHandle, paths: Vec<PathBuf>, action: Action, title: String
     crate::windows::show_toast(app);
     app.state::<Queue>().0.lock().unwrap_or_else(|e| e.into_inner()).send(Job { id, title, paths, action }).map_err(|e| e.to_string())?;
     Ok(id)
+}
+
+/// An editor window only saves its own edits; it never needs to run anything else (a shell
+/// command, shredding, a request to Claude), so it can't ask for them either.
+fn allowed_from(label: &str, action: &Action) -> bool {
+    !label.starts_with("editor-")
+        || matches!(action, Action::Crop { .. } | Action::AddBg { .. } | Action::Redact { .. } | Action::Trim { .. } | Action::Pages { .. } | Action::Stamp { .. })
+}
+
+/// "Undo" in the toast: moves a finished job's results to the Recycle Bin. Only files that a job
+/// recorded as its own output are accepted, so a window can't ask for any other file to go.
+#[tauri::command]
+pub async fn trash(app: AppHandle, paths: Vec<String>) -> Result<(), String> {
+    let ours = with_history(&app, |list| own_outputs(list, &paths));
+    if ours.len() != paths.len() {
+        crate::log(&format!("trash: refused {} path(s) that no job made", paths.len() - ours.len()));
+        return Err("only files Rotae made can be undone".into());
+    }
+    crate::shell::trash(ours).await
+}
+
+/// The requested paths that some recorded job lists among its outputs.
+fn own_outputs(list: &[Record], paths: &[String]) -> Vec<String> {
+    let same = |a: &str, b: &str| if cfg!(windows) { a.eq_ignore_ascii_case(b) } else { a == b };
+    paths.iter().filter(|p| list.iter().any(|r| r.outputs.iter().any(|o| same(o, p)))).cloned().collect()
 }
 
 /// Opens File Explorer with the file selected.
@@ -281,5 +326,59 @@ mod tests {
         let s = super::redact(r#"Protect { password: "Secr\"et-1" } and Decrypt { password: "abc" } Stamp { page: 0, png: "data:image/png;base64,iVBORw0K" }"#);
         assert!(!s.contains("Secr") && !s.contains("abc") && !s.contains("iVBOR"), "{s}");
         assert_eq!(s.matches("•••").count(), 3);
+    }
+
+    #[test]
+    fn unreadable_history_is_kept_aside() {
+        let d = std::env::temp_dir().join(format!("rotae-test-history-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join("history.json");
+        std::fs::write(&p, "[{\"id\":1,").unwrap();
+        assert!(super::load_history(&p).is_empty());
+        assert!(!p.exists() && d.join("history.broken.json").exists());
+        std::fs::write(&p, "[]").unwrap();
+        assert!(super::load_history(&p).is_empty() && p.exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn editor_windows_only_save_edits() {
+        let a = |j: &str| serde_json::from_str::<super::Action>(j).unwrap();
+        assert!(super::allowed_from("editor-3", &a(r#"{"op":"crop","rect":[0,0,10,10]}"#)));
+        assert!(!super::allowed_from("editor-3", &a(r#"{"op":"custom","command":"calc"}"#)));
+        assert!(!super::allowed_from("editor-0", &a(r#"{"op":"shred"}"#)));
+        assert!(super::allowed_from("overlay", &a(r#"{"op":"custom","command":"echo"}"#)));
+        assert!(super::allowed_from("toast", &a(r#"{"op":"shred"}"#)));
+    }
+
+    #[test]
+    fn undo_only_takes_a_jobs_own_outputs() {
+        let rec = |outs: &[&str]| super::Record {
+            id: 1,
+            time: 0,
+            title: String::new(),
+            files: vec![],
+            state: "done".into(),
+            outputs: outs.iter().map(|s| s.to_string()).collect(),
+            error: None,
+            note: None,
+            action: None,
+        };
+        let list = vec![rec(&[r"C:\a\x Smaller.pdf"]), rec(&[r"C:\a\y.png", r"C:\a\z.png"])];
+        let ask = |p: &[&str]| super::own_outputs(&list, &p.iter().map(|s| s.to_string()).collect::<Vec<_>>()).len();
+        assert_eq!(ask(&[r"C:\a\y.png", r"C:\a\z.png"]), 2);
+        assert_eq!(ask(&[r"C:\a\y.png", r"C:\Users\me\thesis.docx"]), 1);
+        assert_eq!(ask(&[r"C:\Windows\System32"]), 0);
+    }
+
+    /// tests/unit/golden/actions.json is every action the wheel and hub can send (kept in step by
+    /// the JS tests); each one must still parse, or that menu entry would fail with a bare error.
+    #[test]
+    fn every_action_the_ui_sends_parses() {
+        let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/unit/golden/actions.json");
+        let list: Vec<serde_json::Value> = serde_json::from_str(&std::fs::read_to_string(&file).expect("tests/unit/golden/actions.json")).unwrap();
+        assert!(list.len() > 40);
+        let bad: Vec<String> = list.iter().filter_map(|a| serde_json::from_value::<super::Action>(a.clone()).err().map(|e| format!("{a}: {e}"))).collect();
+        assert!(bad.is_empty(), "actions the backend can't read:\n{}", bad.join("\n"));
     }
 }

@@ -53,7 +53,8 @@ async function show(p) {
     invoke('pdf_thumbs', { path: p, width: 900, limit: 12 })
       .then((pages) => my === shown && box.replaceChildren(...pages.map((s) => el('img', { src: s, alt: '' }))))
       .catch((e) => my === shown && (box.textContent = `Can't show this PDF: ${e}`));
-  } else if (k === 'text' || (info && info.size < 2_000_000 && !info.real_type && !info.is_dir)) {
+  } else if (k === 'text' || (k === 'other' && info && info.size < 2_000_000 && !info.real_type && !info.is_dir)) {
+    // only files of no known kind are tried as text: a HEIC or camera RAW is a picture, not text
     const text = await invoke('read_text', { path: p, max: 262144 }).catch(() => '');
     if (my !== shown) return;
     view.append(el('pre', { textContent: text + (info?.size > 262144 ? '\n…' : '') }));

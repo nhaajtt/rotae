@@ -91,7 +91,11 @@ fn done() {
 }
 
 fn remove(p: &Path) -> bool {
-    if p.is_dir() { std::fs::remove_dir_all(p).is_ok() } else { std::fs::remove_file(p).is_ok() || !p.exists() }
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).is_ok()
+    } else {
+        std::fs::remove_file(p).is_ok() || !p.exists()
+    }
 }
 
 /// The unit failed: remove the half-written outputs and temp files it made, so no broken
@@ -124,7 +128,7 @@ pub fn discard_running() {
 /// The unit worked: only the temp files go.
 pub fn finish() {
     done();
-    let tmp = std::env::temp_dir().join("rotae");
+    let tmp = temp_root();
     for p in CLAIMED.with(|c| std::mem::take(&mut *c.borrow_mut())) {
         if p.starts_with(&tmp) && p.is_file() {
             let _ = std::fs::remove_file(&p);
@@ -163,10 +167,47 @@ pub fn out_dir(src: &Path, suffix: &str) -> std::io::Result<PathBuf> {
     Ok(p)
 }
 
+/// Rotae's scratch folder. On Windows %TEMP% is already private to the user. Elsewhere /tmp is
+/// shared by every account, so the folder is this user's own (mode 0700), and it is only used if
+/// it really is a folder they own and not a symlink someone planted there; otherwise a fresh one
+/// is made. Other users can then neither read job files (passwords for qpdf, Claude requests)
+/// nor swap in links that redirect our writes.
+pub fn temp_root() -> PathBuf {
+    #[cfg(not(unix))]
+    return std::env::temp_dir().join("rotae");
+    #[cfg(unix)]
+    {
+        static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        ROOT.get_or_init(private_root).clone()
+    }
+}
+
+#[cfg(unix)]
+fn private_root() -> PathBuf {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+    // SAFETY: getuid has no preconditions and cannot fail
+    let uid = unsafe { libc::getuid() };
+    let ours = |p: &Path| std::fs::symlink_metadata(p).is_ok_and(|m| m.is_dir() && m.uid() == uid && m.mode() & 0o077 == 0);
+    let make = |p: &Path| std::fs::DirBuilder::new().mode(0o700).create(p);
+    let base = std::env::temp_dir().join(format!("rotae-{uid}"));
+    let _ = make(&base);
+    if ours(&base) {
+        return base;
+    }
+    // the name is taken by something that isn't ours: a new folder only this process created
+    for n in 0..100 {
+        let p = std::env::temp_dir().join(format!("rotae-{uid}-{}-{n}", std::process::id()));
+        if make(&p).is_ok() && ours(&p) {
+            return p;
+        }
+    }
+    base
+}
+
 pub fn temp_file(ext: &str) -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static N: AtomicU64 = AtomicU64::new(0);
-    let dir = std::env::temp_dir().join("rotae");
+    let dir = temp_root();
     let _ = std::fs::create_dir_all(&dir);
     let p = dir.join(format!("{}-{}.{ext}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
     claim(&p);
@@ -188,15 +229,14 @@ pub enum Kind {
 
 pub fn kind(p: &Path) -> Kind {
     match ext(p).as_str() {
-        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" | "avif" | "heic" | "heif" | "jxl" | "jxr" | "dng" | "cr2"
-        | "cr3" | "nef" | "arw" | "orf" | "rw2" | "raf" => Kind::Image,
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" | "avif" | "heic" | "heif" | "jxl" | "jxr" | "dng" | "cr2" | "cr3" | "nef" | "arw" | "orf"
+        | "rw2" | "raf" => Kind::Image,
         "mp4" | "mov" | "mkv" | "webm" | "avi" | "m4v" | "wmv" | "flv" | "mts" | "m2ts" | "3gp" => Kind::Video,
         "mp3" | "wav" | "m4a" | "aac" | "flac" | "ogg" | "opus" | "wma" | "aiff" | "aif" => Kind::Audio,
         "pdf" => Kind::Pdf,
-        "txt" | "md" | "markdown" | "csv" | "tsv" | "json" | "log" | "xml" | "html" | "htm" | "yaml" | "yml" | "ini" | "cfg" | "conf"
-        | "toml" | "js" | "mjs" | "cjs" | "ts" | "tsx" | "jsx" | "py" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" | "cs" | "java" | "kt"
-        | "go" | "rb" | "php" | "sh" | "bash" | "ps1" | "bat" | "cmd" | "sql" | "css" | "scss" | "lua" | "swift" | "dart" | "vue"
-        | "svelte" => Kind::Text,
+        "txt" | "md" | "markdown" | "csv" | "tsv" | "json" | "log" | "xml" | "html" | "htm" | "yaml" | "yml" | "ini" | "cfg" | "conf" | "toml" | "js" | "mjs" | "cjs" | "ts"
+        | "tsx" | "jsx" | "py" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" | "cs" | "java" | "kt" | "go" | "rb" | "php" | "sh" | "bash" | "ps1" | "bat" | "cmd" | "sql" | "css"
+        | "scss" | "lua" | "swift" | "dart" | "vue" | "svelte" => Kind::Text,
         "doc" | "docx" | "docm" | "odt" | "rtf" | "xls" | "xlsx" | "xlsm" | "ods" | "ppt" | "pptx" | "odp" => Kind::Office,
         "zip" | "tar" | "gz" | "tgz" | "7z" | "rar" | "bz2" | "xz" | "zst" => Kind::Archive,
         "exe" | "dll" | "sys" | "ocx" | "scr" | "cpl" | "drv" | "efi" | "so" | "elf" => Kind::Exe,

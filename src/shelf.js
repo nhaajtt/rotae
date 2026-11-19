@@ -46,7 +46,7 @@ function render() {
       const li = document.createElement('li');
       li.title = p;
       li.classList.toggle('sel', sel.has(p));
-      li.innerHTML = '<span class="k"></span><span class="n"></span><button class="icon x" title="Remove">✕</button>';
+      li.innerHTML = '<span class="k"></span><span class="n"></span><button class="icon x" title="Remove" aria-label="Remove">✕</button>';
       li.querySelector('.k').textContent = extOf(p) || 'dir';
       li.querySelector('.n').textContent = name(p);
       li.querySelector('.x').onclick = (e) => {

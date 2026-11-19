@@ -34,7 +34,13 @@ fn bitmap(path: &Path) -> Result<SoftwareBitmap> {
     let dec = BitmapDecoder::CreateAsync(&stream)?.join().context("Windows has no codec for this image")?;
     // upright and in sRGB: iPhone HEIC photos are Display P3 and would look washed out otherwise
     Ok(dec
-        .GetSoftwareBitmapTransformedAsync(BitmapPixelFormat::Bgra8, BitmapAlphaMode::Straight, &BitmapTransform::new()?, ExifOrientationMode::RespectExifOrientation, ColorManagementMode::ColorManageToSRgb)?
+        .GetSoftwareBitmapTransformedAsync(
+            BitmapPixelFormat::Bgra8,
+            BitmapAlphaMode::Straight,
+            &BitmapTransform::new()?,
+            ExifOrientationMode::RespectExifOrientation,
+            ColorManagementMode::ColorManageToSRgb,
+        )?
         .join()?)
 }
 

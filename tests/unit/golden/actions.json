@@ -1,0 +1,463 @@
+[
+ {
+  "op": "ask_claude",
+  "task": "summarize",
+  "lang": "Vietnamese"
+ },
+ {
+  "op": "ask_claude",
+  "task": "translate",
+  "lang": "English"
+ },
+ {
+  "op": "ask_claude",
+  "task": "translate",
+  "lang": "Vietnamese"
+ },
+ {
+  "op": "ask_claude",
+  "task": "translate",
+  "lang": "x"
+ },
+ {
+  "op": "audio_fix",
+  "mode": "denoise"
+ },
+ {
+  "op": "audio_fix",
+  "mode": "normalize"
+ },
+ {
+  "op": "base64",
+  "decode": false
+ },
+ {
+  "op": "base64",
+  "decode": true
+ },
+ {
+  "op": "blur_faces"
+ },
+ {
+  "op": "compress",
+  "level": "high"
+ },
+ {
+  "op": "compress",
+  "level": "low"
+ },
+ {
+  "op": "compress",
+  "level": "medium"
+ },
+ {
+  "op": "contact_sheet"
+ },
+ {
+  "op": "convert",
+  "to": "avi"
+ },
+ {
+  "op": "convert",
+  "to": "avif"
+ },
+ {
+  "op": "convert",
+  "to": "bmp"
+ },
+ {
+  "op": "convert",
+  "to": "csv"
+ },
+ {
+  "op": "convert",
+  "to": "docx"
+ },
+ {
+  "op": "convert",
+  "to": "flac"
+ },
+ {
+  "op": "convert",
+  "to": "gif"
+ },
+ {
+  "op": "convert",
+  "to": "html"
+ },
+ {
+  "op": "convert",
+  "to": "ico"
+ },
+ {
+  "op": "convert",
+  "to": "jpg"
+ },
+ {
+  "op": "convert",
+  "to": "json"
+ },
+ {
+  "op": "convert",
+  "to": "m4a"
+ },
+ {
+  "op": "convert",
+  "to": "md"
+ },
+ {
+  "op": "convert",
+  "to": "mkv"
+ },
+ {
+  "op": "convert",
+  "to": "mov"
+ },
+ {
+  "op": "convert",
+  "to": "ogg"
+ },
+ {
+  "op": "convert",
+  "to": "opus"
+ },
+ {
+  "op": "convert",
+  "to": "pdf"
+ },
+ {
+  "op": "convert",
+  "to": "png"
+ },
+ {
+  "op": "convert",
+  "to": "tiff"
+ },
+ {
+  "op": "convert",
+  "to": "toml"
+ },
+ {
+  "op": "convert",
+  "to": "txt"
+ },
+ {
+  "op": "convert",
+  "to": "wav"
+ },
+ {
+  "op": "convert",
+  "to": "webm"
+ },
+ {
+  "op": "convert",
+  "to": "webp"
+ },
+ {
+  "op": "convert",
+  "to": "yaml"
+ },
+ {
+  "op": "copy_path_as",
+  "style": "markdown"
+ },
+ {
+  "op": "copy_path_as",
+  "style": "quoted"
+ },
+ {
+  "op": "copy_path_as",
+  "style": "url"
+ },
+ {
+  "op": "copy_path_as",
+  "style": "wsl"
+ },
+ {
+  "op": "copy_path"
+ },
+ {
+  "op": "copy_text"
+ },
+ {
+  "op": "decrypt",
+  "password": "x"
+ },
+ {
+  "op": "diff"
+ },
+ {
+  "op": "encrypt",
+  "password": "x"
+ },
+ {
+  "op": "extract_audio",
+  "to": "m4a"
+ },
+ {
+  "op": "extract_audio",
+  "to": "mp3"
+ },
+ {
+  "op": "extract_audio",
+  "to": "wav"
+ },
+ {
+  "op": "extract_images"
+ },
+ {
+  "op": "extract"
+ },
+ {
+  "op": "flip",
+  "dir": "h"
+ },
+ {
+  "op": "flip",
+  "dir": "v"
+ },
+ {
+  "op": "format_json",
+  "pretty": false
+ },
+ {
+  "op": "format_json",
+  "pretty": true
+ },
+ {
+  "op": "frames",
+  "every": 1
+ },
+ {
+  "op": "frames",
+  "every": 10
+ },
+ {
+  "op": "frames",
+  "every": 5
+ },
+ {
+  "op": "hashes",
+  "algo": "all"
+ },
+ {
+  "op": "hashes",
+  "algo": "md5"
+ },
+ {
+  "op": "hashes",
+  "algo": "sha1"
+ },
+ {
+  "op": "hashes",
+  "algo": "sha256"
+ },
+ {
+  "op": "hashes",
+  "algo": "sha512"
+ },
+ {
+  "op": "icon_set",
+  "web": false
+ },
+ {
+  "op": "icon_set",
+  "web": true
+ },
+ {
+  "op": "identify"
+ },
+ {
+  "op": "locks"
+ },
+ {
+  "op": "merge"
+ },
+ {
+  "op": "mute"
+ },
+ {
+  "op": "ocr",
+  "to": "clipboard"
+ },
+ {
+  "op": "ocr",
+  "to": "txt"
+ },
+ {
+  "op": "page_numbers"
+ },
+ {
+  "op": "palette"
+ },
+ {
+  "op": "pdf_text"
+ },
+ {
+  "op": "pe_info"
+ },
+ {
+  "op": "protect",
+  "password": "x"
+ },
+ {
+  "op": "qr_make"
+ },
+ {
+  "op": "qr_read"
+ },
+ {
+  "op": "remove_bg"
+ },
+ {
+  "op": "resize",
+  "value": 1080
+ },
+ {
+  "op": "resize",
+  "value": 25
+ },
+ {
+  "op": "resize",
+  "value": 480
+ },
+ {
+  "op": "resize",
+  "value": 50
+ },
+ {
+  "op": "resize",
+  "value": 720
+ },
+ {
+  "op": "resize",
+  "value": 75
+ },
+ {
+  "op": "rotate",
+  "deg": 180
+ },
+ {
+  "op": "rotate",
+  "deg": 270
+ },
+ {
+  "op": "rotate",
+  "deg": 90
+ },
+ {
+  "op": "shred"
+ },
+ {
+  "op": "slideshow",
+  "seconds": 1
+ },
+ {
+  "op": "slideshow",
+  "seconds": 2
+ },
+ {
+  "op": "slideshow",
+  "seconds": 3
+ },
+ {
+  "op": "slideshow",
+  "seconds": 5
+ },
+ {
+  "op": "speed",
+  "factor": 0.5
+ },
+ {
+  "op": "speed",
+  "factor": 1.5
+ },
+ {
+  "op": "speed",
+  "factor": 2
+ },
+ {
+  "op": "speed",
+  "factor": 4
+ },
+ {
+  "op": "split"
+ },
+ {
+  "op": "strings"
+ },
+ {
+  "op": "strip_metadata"
+ },
+ {
+  "op": "target_size",
+  "mb": 10
+ },
+ {
+  "op": "target_size",
+  "mb": 25
+ },
+ {
+  "op": "target_size",
+  "mb": 50
+ },
+ {
+  "op": "target_size",
+  "mb": 8
+ },
+ {
+  "op": "thumbnail"
+ },
+ {
+  "op": "tool",
+  "tool": "capa"
+ },
+ {
+  "op": "tool",
+  "tool": "floss"
+ },
+ {
+  "op": "tool",
+  "tool": "upx"
+ },
+ {
+  "op": "tool",
+  "tool": "yara"
+ },
+ {
+  "op": "transcribe",
+  "burn": false
+ },
+ {
+  "op": "transcribe",
+  "burn": true
+ },
+ {
+  "op": "unprotect",
+  "password": "x"
+ },
+ {
+  "op": "upscale",
+  "scale": 2
+ },
+ {
+  "op": "upscale",
+  "scale": 4
+ },
+ {
+  "op": "vectorize"
+ },
+ {
+  "op": "verify_signature"
+ },
+ {
+  "op": "virus_total"
+ },
+ {
+  "op": "watermark",
+  "text": "x"
+ },
+ {
+  "op": "zip"
+ }
+]

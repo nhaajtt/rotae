@@ -48,7 +48,9 @@ function unblock() {
 function track(el, e, move, done) {
   try {
     el.setPointerCapture(e.pointerId);
-  } catch {}
+  } catch {
+    // a pointer that already went away: dragging still works without capture
+  }
   const off = [];
   const on = (n, f) => (el.addEventListener(n, f), off.push(() => el.removeEventListener(n, f)));
   let over = false;
@@ -437,10 +439,10 @@ function pages() {
             'figcaption',
             {},
             h('span', { class: 'label' }, `${p.i + 1}`),
-            h('button', { class: 'icon', title: 'Move left', onclick: () => k > 0 && ([items[k - 1], items[k]] = [items[k], items[k - 1]], draw()) }, '‹'),
-            h('button', { class: 'icon', title: 'Move right', onclick: () => k < items.length - 1 && ([items[k + 1], items[k]] = [items[k], items[k + 1]], draw()) }, '›'),
-            h('button', { class: 'icon', title: 'Rotate', onclick: () => ((p.rot = (p.rot + 90) % 360), draw()) }, '↻'),
-            h('button', { class: 'icon', title: 'Remove', onclick: () => (items.splice(k, 1), draw()) }, '✕'),
+            h('button', { class: 'icon', title: 'Move left', 'aria-label': 'Move left', onclick: () => k > 0 && ([items[k - 1], items[k]] = [items[k], items[k - 1]], draw()) }, '‹'),
+            h('button', { class: 'icon', title: 'Move right', 'aria-label': 'Move right', onclick: () => k < items.length - 1 && ([items[k + 1], items[k]] = [items[k], items[k + 1]], draw()) }, '›'),
+            h('button', { class: 'icon', title: 'Rotate', 'aria-label': 'Rotate', onclick: () => ((p.rot = (p.rot + 90) % 360), draw()) }, '↻'),
+            h('button', { class: 'icon', title: 'Remove', 'aria-label': 'Remove', onclick: () => (items.splice(k, 1), draw()) }, '✕'),
           ),
         ),
       ),

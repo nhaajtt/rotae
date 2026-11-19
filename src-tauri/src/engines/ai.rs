@@ -1,7 +1,7 @@
 //! On-device models (downloaded once in Settings › Add-ons): background removal, face blurring,
 //! and upscaling with Real-ESRGAN. Nothing is uploaded.
 
-use super::{image::open, image::save, note, security, Action, Progress};
+use super::{addons, image::open, image::save, note, Action, Progress};
 use crate::naming::{out_path, temp_file};
 use anyhow::{bail, Context, Result};
 use image::{imageops, DynamicImage, GenericImageView, Rgba, RgbaImage};
@@ -33,7 +33,7 @@ fn runtime() -> Result<()> {
     static READY: Mutex<bool> = Mutex::new(false);
     let mut ready = READY.lock().unwrap_or_else(|e| e.into_inner());
     if !*ready {
-        let dll = security::tool_path("ai").context(MISSING)?;
+        let dll = addons::tool_path("ai").context(MISSING)?;
         ort::init_from(dll.to_string_lossy().to_string()).commit().map_err(|e| anyhow::anyhow!("the AI add-on couldn't start: {e}"))?;
         *ready = true;
     }
@@ -44,7 +44,7 @@ fn session(cache: &'static OnceLock<Mutex<Session>>, model: &str) -> Result<&'st
     if let Some(s) = cache.get() {
         return Ok(s);
     }
-    let path = security::tool_file("ai", model).context(MISSING)?;
+    let path = addons::tool_file("ai", model).context(MISSING)?;
     runtime()?;
     let s = Session::builder()?.commit_from_file(path)?;
     Ok(cache.get_or_init(|| Mutex::new(s)))
@@ -182,7 +182,7 @@ fn pixelate(img: &mut RgbaImage, x: u32, y: u32, w: u32, h: u32) {
 // --- Upscaling (Real-ESRGAN, runs on the GPU through Vulkan) ---------------------------------
 
 fn upscale(src: &Path, scale: u32) -> Result<PathBuf> {
-    let exe = security::tool_path("upscale").context("Upscaling isn't installed yet: Settings › Add-ons")?;
+    let exe = addons::tool_path("upscale").context("Upscaling isn't installed yet: Settings › Add-ons")?;
     let scale = scale.clamp(2, 4);
     let img = open(src)?;
     // past ~100 megapixels the result can't be opened again (and takes many minutes of GPU time)
@@ -193,13 +193,12 @@ fn upscale(src: &Path, scale: u32) -> Result<PathBuf> {
     img.save(&png)?;
     let tmp_out = temp_file("png");
     let o = super::tools::output_within(
-        super::tools::quiet(&exe)
-            .current_dir(exe.parent().context("no folder")?)
-            .arg("-i")
-            .arg(&png)
-            .arg("-o")
-            .arg(&tmp_out)
-            .args(["-n", "realesrgan-x4plus", "-s", &scale.to_string()]),
+        super::tools::quiet(&exe).current_dir(exe.parent().context("no folder")?).arg("-i").arg(&png).arg("-o").arg(&tmp_out).args([
+            "-n",
+            "realesrgan-x4plus",
+            "-s",
+            &scale.to_string(),
+        ]),
         std::time::Duration::from_secs(1200),
     )?;
     let _ = std::fs::remove_file(&png);

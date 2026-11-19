@@ -1,3 +1,4 @@
+pub mod addons;
 pub mod ai;
 pub mod dev;
 pub mod docx;
@@ -13,10 +14,10 @@ pub mod pdfx;
 pub mod pentest;
 pub mod recon;
 pub mod security;
-pub mod text;
-pub mod tools;
 #[cfg(test)]
 mod tests;
+pub mod text;
+pub mod tools;
 
 use crate::naming::{kind, Kind};
 use anyhow::{bail, Result};
@@ -34,22 +35,46 @@ pub enum Level {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum Action {
-    Convert { to: String },
-    Compress { level: Level },
+    Convert {
+        to: String,
+    },
+    Compress {
+        level: Level,
+    },
     /// Images: percent of the original size. Video: target height in pixels.
-    Resize { value: u32 },
-    Rotate { deg: u32 },
+    Resize {
+        value: u32,
+    },
+    Rotate {
+        deg: u32,
+    },
     StripMetadata,
-    ExtractAudio { to: String },
+    ExtractAudio {
+        to: String,
+    },
     Mute,
     Merge,
     Split,
     /// Rectangles are fractions (0–1) of the image: [x, y, w, h].
-    Crop { rect: [f64; 4] },
-    AddBg { color: String, padding: f64, radius: f64, shadow: f64 },
-    Redact { boxes: Vec<[f64; 4]> },
-    Trim { start: f64, end: f64 },
-    FormatJson { pretty: bool },
+    Crop {
+        rect: [f64; 4],
+    },
+    AddBg {
+        color: String,
+        padding: f64,
+        radius: f64,
+        shadow: f64,
+    },
+    Redact {
+        boxes: Vec<[f64; 4]>,
+    },
+    Trim {
+        start: f64,
+        end: f64,
+    },
+    FormatJson {
+        pretty: bool,
+    },
     Zip,
     Extract,
     Hash,
@@ -60,64 +85,118 @@ pub enum Action {
     Identify,
     VerifySignature,
     /// md5 | sha1 | sha256 | sha512 → clipboard; all → report file
-    Hashes { algo: String },
+    Hashes {
+        algo: String,
+    },
     Sandbox,
-    Encrypt { password: String },
-    Decrypt { password: String },
+    Encrypt {
+        password: String,
+    },
+    Decrypt {
+        password: String,
+    },
     Shred,
     Locks,
     VirusTotal,
     /// capa | floss | upx
-    Tool { tool: String },
-    Base64 { decode: bool },
+    Tool {
+        tool: String,
+    },
+    Base64 {
+        decode: bool,
+    },
     /// plain | quoted | wsl | url | markdown
-    CopyPathAs { style: String },
+    CopyPathAs {
+        style: String,
+    },
     Diff,
     /// Re-encode to fit in this many megabytes (e.g. Discord, Zalo, email limits).
-    TargetSize { mb: f64 },
-    Speed { factor: f64 },
+    TargetSize {
+        mb: f64,
+    },
+    Speed {
+        factor: f64,
+    },
     /// h | v
-    Flip { dir: String },
+    Flip {
+        dir: String,
+    },
     /// one PNG every `every` seconds into a folder
-    Frames { every: f64 },
+    Frames {
+        every: f64,
+    },
     Thumbnail,
     /// images → video, `seconds` per image
-    Slideshow { seconds: f64 },
+    Slideshow {
+        seconds: f64,
+    },
     /// denoise | normalize
-    AudioFix { mode: String },
+    AudioFix {
+        mode: String,
+    },
     /// speech → .srt with whisper.cpp; `burn` also draws them into the video
-    Transcribe { burn: bool },
+    Transcribe {
+        burn: bool,
+    },
     /// clipboard | txt
-    Ocr { to: String },
+    Ocr {
+        to: String,
+    },
     QrRead,
     /// text file → QR code image
     QrMake,
     /// .ico for apps, or a favicon folder for websites
-    IconSet { web: bool },
+    IconSet {
+        web: bool,
+    },
     Palette,
-    Watermark { text: String },
+    Watermark {
+        text: String,
+    },
     ContactSheet,
     /// image → SVG
     Vectorize,
     RemoveBg,
     BlurFaces,
-    Upscale { scale: u32 },
+    Upscale {
+        scale: u32,
+    },
     /// keep these pages (0-based) in this order, each rotated by `rotate[i]` degrees
-    Pages { order: Vec<u32>, #[serde(default)] rotate: Vec<u32> },
+    Pages {
+        order: Vec<u32>,
+        #[serde(default)]
+        rotate: Vec<u32>,
+    },
     PageNumbers,
     /// a PNG (data URL) placed on `page` at [x, y, w, h] fractions from the top-left
-    Stamp { page: u32, rect: [f64; 4], png: String },
+    Stamp {
+        page: u32,
+        rect: [f64; 4],
+        png: String,
+    },
     /// text of every page, OCR for scanned ones
     PdfText,
     ExtractImages,
-    Protect { password: String },
-    Unprotect { password: String },
+    Protect {
+        password: String,
+    },
+    Unprotect {
+        password: String,
+    },
     /// a recipe: each step runs on what the previous one made
-    Chain { steps: Vec<Action> },
+    Chain {
+        steps: Vec<Action>,
+    },
     /// the user's own command line; {file} {dir} {name} {stem} {ext} are filled in
-    Custom { command: String },
+    Custom {
+        command: String,
+    },
     /// translate | summarize, with the user's Claude API key
-    AskClaude { task: String, #[serde(default)] lang: String },
+    AskClaude {
+        task: String,
+        #[serde(default)]
+        lang: String,
+    },
     /// a tool from the pentest manifest, sandboxed (Pentest user mode)
     Pentest {
         tool: String,
@@ -127,7 +206,11 @@ pub enum Action {
     },
     /// Work done through Apple's frameworks or plain text tools; only exists in the Mac build.
     #[cfg(target_os = "macos")]
-    Native { verb: String, #[serde(default)] arg: String },
+    Native {
+        verb: String,
+        #[serde(default)]
+        arg: String,
+    },
 }
 
 thread_local! {
@@ -150,7 +233,9 @@ pub fn is_group(a: &Action) -> bool {
     if let Action::Native { verb, arg } = a {
         return crate::desk::is_group(verb, arg);
     }
-    files::is_group(a) || matches!(a, Action::Merge | Action::Diff | Action::Shred | Action::Slideshow { .. } | Action::ContactSheet) || matches!(a, Action::Hashes { algo } if algo != "all")
+    files::is_group(a)
+        || matches!(a, Action::Merge | Action::Diff | Action::Shred | Action::Slideshow { .. } | Action::ContactSheet)
+        || matches!(a, Action::Hashes { algo } if algo != "all")
 }
 
 pub type Progress<'a> = &'a dyn Fn(f32);
@@ -212,6 +297,9 @@ fn chain(paths: &[PathBuf], steps: &[Action], progress: Progress) -> Result<Vec<
     let n = steps.len().max(1) as f32;
     let mut cur = paths.to_vec();
     let mut made = Vec::new();
+    // what a custom command made is a guess (whatever appeared in the folder meanwhile, maybe a
+    // download that finished): those files are never cleaned up as in-between results
+    let mut guessed: Vec<PathBuf> = Vec::new();
     for (k, step) in steps.iter().enumerate() {
         let units: Vec<Vec<PathBuf>> = if is_group(step) { vec![cur.clone()] } else { cur.iter().map(|p| vec![p.clone()]).collect() };
         let mut next = Vec::new();
@@ -229,11 +317,14 @@ fn chain(paths: &[PathBuf], steps: &[Action], progress: Progress) -> Result<Vec<
         if next.is_empty() {
             next = cur.clone();
         }
+        if matches!(step, Action::Custom { .. }) {
+            guessed.extend(next.iter().cloned());
+        }
         made.extend(next.iter().filter(|p| !paths.contains(p)).cloned());
         cur = next;
     }
     // keep only the final results, not the files made along the way
-    for p in made.iter().filter(|p| !cur.contains(p)) {
+    for p in made.iter().filter(|p| !cur.contains(p) && !guessed.contains(p)) {
         let _ = if p.is_dir() { std::fs::remove_dir_all(p) } else { std::fs::remove_file(p) };
     }
     Ok(cur.into_iter().filter(|p| !paths.contains(p)).collect())
@@ -274,7 +365,18 @@ fn custom(src: &std::path::Path, command: &str) -> Result<Vec<PathBuf>> {
         // values travel as environment variables, so a file name can never become shell code
         let line = shell_template(command);
         let n = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        tools::output_within_unowned(std::process::Command::new("/bin/sh").arg("-c").arg(line).current_dir(&dir).env("SD_FILE", src).env("SD_DIR", &dir).env("SD_NAME", n).env("SD_STEM", stem(src)).env("SD_EXT", ext(src)), std::time::Duration::from_secs(3600))?
+        tools::output_within_unowned(
+            std::process::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(line)
+                .current_dir(&dir)
+                .env("SD_FILE", src)
+                .env("SD_DIR", &dir)
+                .env("SD_NAME", n)
+                .env("SD_STEM", stem(src))
+                .env("SD_EXT", ext(src)),
+            std::time::Duration::from_secs(3600),
+        )?
     };
     #[cfg(all(not(windows), not(target_os = "macos")))]
     let o = tools::output_within_unowned(std::process::Command::new("sh").arg("-c").arg(&line).current_dir(&dir), std::time::Duration::from_secs(3600))?;

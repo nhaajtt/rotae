@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { SAMPLES, buildMenu, ctx, flatActions, kindOf, loadContext, MORE, menuFor, noteUse, prefs, savePrefs } from './menu.js';
+import { SAMPLES, buildMenu, flatActions, loadContext, MORE, menuFor, noteUse, prefs, savePrefs } from './menu.js';
 import { runTarget } from './run.js';
 import { initTheme } from './theme.js';
 import { addView, h, LINUX, name, settings, settingsSections, shared, toggle, views } from './ui.js';
@@ -20,7 +20,7 @@ const $nav = document.getElementById('nav');
 
 let apps = [];
 let files = []; // files the actions view works on
-Object.defineProperty(shared, 'files', { get: () => files, set: (v) => (files = v) });
+Object.defineProperty(shared, 'files', { get: () => files, set: (v) => { files = v; } });
 const state = { view: 'actions' };
 
 function nav() {
@@ -30,7 +30,13 @@ function nav() {
     if (v.bottom && !$nav.querySelector('.spacer')) $nav.append(h('div', { class: 'spacer' }));
     const badge = v.badge?.();
     $nav.append(
-      h('button', { class: v.id === state.view ? 'on' : '', onclick: () => show(v.id) }, h('span', { class: 'g' }, v.glyph), v.label, badge ? h('span', { class: 'badge' }, String(badge)) : null),
+      h(
+        'button',
+        { class: v.id === state.view ? 'on' : '', 'aria-current': v.id === state.view ? 'page' : null, onclick: () => show(v.id) },
+        h('span', { class: 'g', 'aria-hidden': 'true' }, v.glyph),
+        v.label,
+        badge ? h('span', { class: 'badge' }, String(badge)) : null,
+      ),
     );
   }
 }
@@ -80,8 +86,8 @@ addView({
     }
     const { kind, list } = actionsFor(files);
     root.append(h('div', { class: 'files' }, files.slice(0, 12).map((p) => h('span', { class: 'chip', title: p }, name(p))), files.length > 12 && h('span', { class: 'chip' }, `+${files.length - 12}`)));
-    const q = h('input', { type: 'search', class: 'search', placeholder: `Search ${list.length} actions…`, autofocus: true });
-    const ul = h('div', { class: 'list' });
+    const q = h('input', { type: 'search', class: 'search', placeholder: `Search ${list.length} actions…`, 'aria-label': 'Search actions', 'aria-controls': 'actions-list', autofocus: true });
+    const ul = h('div', { class: 'list', id: 'actions-list', role: 'listbox', 'aria-label': 'Actions' });
     let sel = 0;
     let shown = list;
     const go = async (it) => {
@@ -107,14 +113,16 @@ addView({
         ...shown.map((it, i) =>
           h(
             'div',
-            { class: `row${i === sel ? ' sel' : ''}`, onclick: () => go(it), onmousemove: () => i !== sel && ((sel = i), paint()) },
-            h('span', { class: 'g' }, it.glyph || '·'),
+            { class: `row${i === sel ? ' sel' : ''}`, id: `action-${i}`, role: 'option', 'aria-selected': String(i === sel), onclick: () => go(it), onmousemove: () => i !== sel && ((sel = i), paint()) },
+            h('span', { class: 'g', 'aria-hidden': 'true' }, it.glyph || '·'),
             it.name,
             h('span', { class: 'hint' }, it.app ? 'opens app' : it.editor ? 'editor' : ''),
           ),
         ),
       );
-      if (!shown.length) ul.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+      if (!shown.length) ul.append(h('div', { class: 'empty', role: 'status' }, 'Nothing matches.'));
+      if (shown.length) q.setAttribute('aria-activedescendant', `action-${sel}`);
+      else q.removeAttribute('aria-activedescendant');
       ul.children[sel]?.scrollIntoView({ block: 'nearest' });
     };
     q.addEventListener('input', () => ((sel = 0), paint()));
@@ -202,7 +210,7 @@ addView({
 });
 
 function alertLine(msg) {
-  const p = h('p', { class: 'tag err' }, msg);
+  const p = h('p', { class: 'tag err', role: 'alert' }, msg);
   $main.prepend(p);
   setTimeout(() => p.remove(), 6000);
 }
@@ -359,7 +367,7 @@ async function paste() {
 }
 
 addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.key.toLowerCase() === 'v' && !(e.target instanceof HTMLInputElement)) paste();
+  if (e.ctrlKey && e.key.toLowerCase() === 'v' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target.isContentEditable)) paste();
   if (e.key === 'Escape') getCurrentWindow().hide();
 });
 
