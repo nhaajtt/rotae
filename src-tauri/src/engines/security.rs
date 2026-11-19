@@ -352,7 +352,7 @@ fn sandbox(src: &Path) -> Result<()> {
         bail!("Windows Sandbox needs Windows Pro or Enterprise with the feature turned on");
     }
     // copies from earlier sandboxes (read after the job ended, so never job temp files) go after a day
-    let root = std::env::temp_dir().join("rotae");
+    let root = crate::naming::temp_root();
     for e in std::fs::read_dir(&root).into_iter().flatten().flatten() {
         let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|a| a.as_secs() > 24 * 3600);
         if old && e.file_name().to_string_lossy().starts_with("sandbox-") {
@@ -902,9 +902,16 @@ fn install_whisper_model() -> Result<PathBuf> {
     Ok(cli)
 }
 
+/// The largest add-on (FFmpeg, the AI runtime) is a few hundred MB; anything far bigger is not
+/// what was asked for and must not fill the disk.
+const MAX_DOWNLOAD: &str = "2147483648";
+
 fn download(url: &str, to: &Path, min_size: u64) -> Result<()> {
-    let mut child =
-        super::tools::quiet(&curl()).args(["-sfL", "--proto", "=https", "--proto-redir", "=https", "--retry", "2", "--max-time", "1800", "-o"]).arg(to).arg(url).spawn()?;
+    let mut child = super::tools::quiet(&curl())
+        .args(["-sfL", "--proto", "=https", "--proto-redir", "=https", "--retry", "2", "--max-time", "1800", "--max-filesize", MAX_DOWNLOAD, "-o"])
+        .arg(to)
+        .arg(url)
+        .spawn()?;
     super::tools::adopt(child.id());
     let ok = child.wait()?.success();
     if !ok || std::fs::metadata(to).map(|m| m.len()).unwrap_or(0) < min_size {

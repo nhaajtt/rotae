@@ -57,9 +57,26 @@ pub fn quiet(program: &Path) -> Command {
     c
 }
 
+/// Protocols ffmpeg and ffprobe may open. A crafted media file (an HLS or concat playlist in
+/// disguise) can otherwise make them fetch URLs from the network while "converting" it.
+const LOCAL_ONLY: [&str; 2] = ["-protocol_whitelist", "file,pipe"];
+
+/// `-protocol_whitelist` applies to the input after it, so it goes in front of every `-i`.
+pub(crate) fn local_inputs(args: &[String]) -> Vec<String> {
+    let mut out = Vec::with_capacity(args.len() + 4);
+    for a in args {
+        if a == "-i" {
+            out.extend(LOCAL_ONLY.map(String::from));
+        }
+        out.push(a.clone());
+    }
+    out
+}
+
 fn probe(args: &[&str], file: &Path) -> Result<String> {
     let out = command("ffprobe")
         .args(["-v", "error"])
+        .args(LOCAL_ONLY)
         .args(args)
         .arg(file)
         .output()
@@ -328,7 +345,7 @@ pub fn ffmpeg_in(dir: Option<&Path>, args: &[String], total: f64, progress: &dyn
     }
     let mut child = cmd
         .args(["-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y"])
-        .args(args)
+        .args(local_inputs(args))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -94,7 +94,10 @@ pub fn path_as(p: &Path, style: &str) -> String {
 /// Two files side by side in VS Code, or a unified .diff file next to the first one.
 fn diff(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let [a, b] = paths else { bail!("pick exactly two files to compare") };
-    if !cfg!(test) && crate::apps::launch_id("vscode", &format!("--diff \"{}\" \"{}\"", a.display(), b.display())).is_ok() {
+    // the paths go into one quoted argument string, so a name holding a quote (possible on
+    // Linux) could smuggle extra VS Code options in; those pairs use the built-in diff instead
+    let quotable = !a.to_string_lossy().contains('"') && !b.to_string_lossy().contains('"');
+    if !cfg!(test) && quotable && crate::apps::launch_id("vscode", &format!("--diff \"{}\" \"{}\"", a.display(), b.display())).is_ok() {
         note("Opened the comparison in VS Code");
         return Ok(vec![]);
     }
