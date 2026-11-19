@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.1
 
 ### Safer
 - Undo only moves files a job made to the Recycle Bin; an editor window can only save its edits.

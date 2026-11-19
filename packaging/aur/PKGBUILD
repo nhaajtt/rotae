@@ -2,7 +2,7 @@
 # Repackages the official .deb from GitHub Releases. Update pkgver and sha256sums for each release
 # (sha256sums: the digest GitHub shows next to the .deb asset).
 pkgname=rotae-bin
-pkgver=1.2.0
+pkgver=1.2.1
 pkgrel=1
 pkgdesc="Drag any file to convert, compress, edit, check and share it"
 arch=('x86_64')
