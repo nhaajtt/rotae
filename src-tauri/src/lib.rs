@@ -275,7 +275,11 @@ pub fn run() {
             engines::tools::set_bin_dir(bin_dir(app));
             app.manage(jobs::start(handle.clone()));
             windows::create(&handle)?;
-            tray::create(&handle)?;
+            // a desktop without a tray (GNOME without the AppIndicator extension) still gets the
+            // wheel, the hub (open Rotae again) and everything else
+            if let Err(e) = tray::create(&handle) {
+                log(&format!("tray: {e}"));
+            }
             #[cfg(windows)]
             // debug aid: ROTAE_DEMO=<file> shows the menu for that file in the middle of the screen
             #[cfg(debug_assertions)]

@@ -28,6 +28,20 @@ fn is_made(p: &PathBuf) -> bool {
     MADE.lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(|m| m.contains(p)) || crate::naming::is_running_output(p)
 }
 
+/// Seen before, or Rotae's own output. Outputs go into `seen` too: MADE is emptied now and then
+/// on a long-running PC, and an output only remembered there would later be taken for a new
+/// file and processed again (and its output after it, and so on).
+fn already_handled(seen: &mut HashSet<PathBuf>, p: &PathBuf) -> bool {
+    if seen.contains(p) {
+        return true;
+    }
+    if is_made(p) {
+        seen.insert(p.clone());
+        return true;
+    }
+    false
+}
+
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         // watch → files already there (or handled), and sizes of files still being written.
@@ -50,7 +64,7 @@ pub fn start(app: AppHandle) {
                     continue;
                 };
                 for p in now {
-                    if seen.contains(&p) || is_made(&p) || ignorable(&p) {
+                    if already_handled(seen, &p) || ignorable(&p) {
                         continue;
                     }
                     let size = std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
