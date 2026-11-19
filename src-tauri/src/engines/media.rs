@@ -422,7 +422,7 @@ fn transcribe(src: &Path, burn: bool, progress: Progress) -> Result<Vec<PathBuf>
     let rel = srt_tmp.file_name().context("no name")?.to_string_lossy().into_owned();
     let out = out_path(src, Some("Subtitled"), "mp4");
     let mut args = s(&["-i", &src.to_string_lossy()]);
-    args.extend(with_vf(codec_args("mp4")?, format!("subtitles={rel}:force_style='FontName={},FontSize=20,Outline=1.2,Shadow=0',{EVEN}", if cfg!(windows) { "Segoe UI" } else { "Sans" })));
+    args.extend(with_vf(codec_args("mp4")?, format!("subtitles={rel}:force_style='FontName={},FontSize=20,Outline=1.2,Shadow=0',{EVEN}", if cfg!(windows) { "Segoe UI" } else if cfg!(target_os = "macos") { "Helvetica" } else { "Sans" })));
     args.push(out.to_string_lossy().into_owned());
     let r = tools::ffmpeg_in(Some(&dir), &args, dur, &|p| progress(0.7 + p * 0.3));
     let _ = std::fs::remove_file(&srt_tmp);

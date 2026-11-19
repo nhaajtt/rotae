@@ -2,16 +2,47 @@
 
 const REPO = 'nhaajtt/rotae';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DL = {
+  win: `https://github.com/${REPO}/releases/latest`,
+  mac: `https://github.com/${REPO}/releases/latest/download/Rotae-mac-arm64.dmg`,
+  linux: `https://github.com/${REPO}/releases/latest`,
+};
+let os = 'win';
 
 fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
   .then((r) => (r.ok ? r.json() : null))
   .then((rel) => {
     const exe = rel?.assets?.find((a) => /-setup\.exe$/i.test(a.name));
     if (!exe) return;
-    document.querySelectorAll('#download, .dl').forEach((a) => (a.href = exe.browser_download_url));
-    document.getElementById('version').textContent = `v${rel.tag_name.replace(/^v/, '')} · ${(exe.size / 1048576).toFixed(0)} MB`;
+    DL.win = exe.browser_download_url;
+    document.querySelectorAll('#download, .dl').forEach((a) => (a.href = DL.win));
+    setOS(os);
+    document.getElementById('version').textContent = `v${rel.tag_name.replace(/^v/, '')}`;
+    document.querySelectorAll('.exe-size').forEach((s) => (s.textContent = `x64 · ${(exe.size / 1048576).toFixed(0)} MB`));
   })
   .catch(() => {});
+
+// --- Windows / macOS / Linux: show the command and download for the visitor's system;
+// the tabs switch it, and both sets of tabs on the page stay in step
+function guessOS() {
+  const p = `${navigator.userAgentData?.platform || ''} ${navigator.platform || ''} ${navigator.userAgent}`;
+  if (/Mac/i.test(p)) return 'mac';
+  if (/Linux|X11|CrOS/i.test(p) && !/Android/i.test(p)) return 'linux';
+  return 'win';
+}
+function setOS(which) {
+  os = which;
+  document.getElementById('hdr-dl').href = DL[os];
+  document.querySelectorAll('[data-os-show]').forEach((n) => (n.hidden = !n.dataset.osShow.split(' ').includes(os)));
+  document.querySelectorAll('[data-os]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
+}
+setOS(['win', 'mac', 'linux'].includes(localStorage.getItem('os')) ? localStorage.getItem('os') : guessOS());
+document.querySelectorAll('[data-os]').forEach((b) =>
+  b.addEventListener('click', () => {
+    localStorage.setItem('os', b.dataset.os);
+    setOS(b.dataset.os);
+  }),
+);
 
 // --- the lede arrives word by word; highlighted phrases and links move as one piece
 let wordsShown = false;

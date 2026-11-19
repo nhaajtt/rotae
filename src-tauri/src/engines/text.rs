@@ -152,8 +152,14 @@ pub fn to_html(src: &Path) -> Result<String> {
 }
 
 /// A Chromium-based browser that prints HTML to PDF headless: Edge on Windows; Chromium, Chrome,
-/// Brave or Edge on Linux.
-#[cfg(not(windows))]
+/// Brave or Edge on Linux. On macOS `sd-native` takes the same print arguments and renders with
+/// WebKit, JavaScript off.
+#[cfg(target_os = "macos")]
+fn edge() -> Option<PathBuf> {
+    crate::native::path()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
 fn edge() -> Option<PathBuf> {
     ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().find_map(|n| crate::platform::which(n))
 }
@@ -272,7 +278,7 @@ fn url(p: &Path) -> String {
             _ => format!("%{b:02X}"),
         })
         .collect();
-    format!("file:///{enc}")
+    if enc.starts_with('/') { format!("file://{enc}") } else { format!("file:///{enc}") }
 }
 
 fn format_json(src: &Path, pretty: bool) -> Result<PathBuf> {
@@ -469,6 +475,8 @@ fn json_to_csv(src: &Path) -> Result<PathBuf> {
             Some(serde_json::Value::String(s)) => s.clone(),
             Some(other) => other.to_string(),
         };
+        // a spreadsheet would run "=HYPERLINK(...)" from a stranger's data as a formula
+        let s = if s.starts_with(['=', '+', '-', '@', '\t', '\r']) && s.parse::<f64>().is_err() { format!("'{s}") } else { s };
         if s.contains([',', '"', '\n']) { format!("\"{}\"", s.replace('"', "\"\"")) } else { s }
     };
     let mut csv = keys.iter().map(|k| cell(Some(&serde_json::Value::String(k.clone())))).collect::<Vec<_>>().join(",") + "\r\n";

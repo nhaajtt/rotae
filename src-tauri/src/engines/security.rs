@@ -70,8 +70,14 @@ fn head(p: &Path, n: usize) -> Vec<u8> {
 
 // --- Real file type -------------------------------------------------------------------------
 
+#[cfg(not(target_os = "macos"))]
 const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin", "o", "ko", "out", "run", "appimage", "dylib"];
+#[cfg(not(target_os = "macos"))]
 const SCRIPT_EXT: &[&str] = &["bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "hta", "lnk", "msi", "sh"];
+#[cfg(target_os = "macos")]
+const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin", "o", "ko", "out", "run", "appimage", "app", "dylib", "pkg", "mpkg", "dmg", "macho", "kext"];
+#[cfg(target_os = "macos")]
+const SCRIPT_EXT: &[&str] = &["bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "hta", "lnk", "msi", "sh", "command", "tool", "scpt", "applescript", "workflow"];
 
 /// What the content really is: (extension, description).
 pub fn sniff(p: &Path) -> Option<(String, String)> {
@@ -85,8 +91,11 @@ pub fn sniff_bytes(h: &[u8]) -> Option<(String, String)> {
     if h.starts_with(b"\x7fELF") {
         return Some(("elf".into(), "Linux program".into()));
     }
-    // Mach-O 32/64-bit in both byte orders, and universal binaries
-    if [[0xFE, 0xED, 0xFA, 0xCE], [0xFE, 0xED, 0xFA, 0xCF], [0xCE, 0xFA, 0xED, 0xFE], [0xCF, 0xFA, 0xED, 0xFE]].iter().any(|m| h.starts_with(m)) {
+    // Mach-O 32/64-bit in both byte orders, and universal binaries (CA FE BA BE, which Java
+    // class files share: there the next four bytes hold a version of 45 or more, in a universal
+    // binary the number of architectures inside)
+    let fat = h.len() >= 8 && h.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE]) && u32::from_be_bytes([h[4], h[5], h[6], h[7]]) < 45;
+    if fat || [[0xFE, 0xED, 0xFA, 0xCE], [0xFE, 0xED, 0xFA, 0xCF], [0xCE, 0xFA, 0xED, 0xFE], [0xCF, 0xFA, 0xED, 0xFE]].iter().any(|m| h.starts_with(m)) {
         return Some(("macho".into(), "macOS program".into()));
     }
     let t = infer::get(h)?;
@@ -105,7 +114,7 @@ pub fn disguise(p: &Path) -> Option<String> {
             return Some(format!("{}: looks like .{fake} but is a program", name(p)));
         }
     }
-    if n.contains('\u{202e}') {
+    if n.contains(['\u{202e}', '\u{202d}', '\u{2066}', '\u{2067}', '\u{2068}', '\u{200f}']) {
         return Some(format!("{}: name uses a hidden right-to-left trick", name(p)));
     }
     let (real, what) = sniff(p)?;
@@ -248,7 +257,12 @@ fn catalog_signature(p: &Path) -> Option<u32> {
     None
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+pub fn signature(p: &Path) -> String {
+    crate::native::signature(p)
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn signature(_: &Path) -> String {
     "signature check is only available on Windows".into()
 }
@@ -410,6 +424,11 @@ fn shred(p: &Path) -> Result<()> {
         use std::os::windows::fs::OpenOptionsExt;
         opts.custom_flags(0x0020_0000); // FILE_FLAG_OPEN_REPARSE_POINT
     }
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.custom_flags(libc::O_NOFOLLOW);
+    }
     let mut f = opts.open(p)?;
     let meta = f.metadata()?;
     if !meta.is_file() || meta.file_type().is_symlink() {
@@ -496,8 +515,17 @@ fn locks(p: &Path) -> Result<String> {
     Ok(if names.is_empty() { format!("{}: no program is using it", name(p)) } else { format!("{} is used by: {}", name(p), names.join(", ")) })
 }
 
+#[cfg(target_os = "macos")]
+fn locks(p: &Path) -> Result<String> {
+    let o = super::tools::output_within(std::process::Command::new("/usr/sbin/lsof").arg("-Fc").arg("--").arg(p), std::time::Duration::from_secs(20))?;
+    let mut apps: Vec<String> = String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.strip_prefix('c').map(str::to_string)).collect();
+    apps.sort();
+    apps.dedup();
+    Ok(if apps.is_empty() { format!("{}: nothing is using it", name(p)) } else { format!("{}: in use by {}", name(p), apps.join(", ")) })
+}
+
 /// Linux: every process holding the file open, from /proc (no extra tools needed).
-#[cfg(not(windows))]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn locks(p: &Path) -> Result<String> {
     let target = std::fs::canonicalize(p)?;
     let mut names = Vec::new();
@@ -568,7 +596,12 @@ pub fn curl_secret(cmd: &mut std::process::Command, config: &str) -> Result<std:
     Ok(child.wait_with_output()?)
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+pub fn curl() -> PathBuf {
+    PathBuf::from("/usr/bin/curl")
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
 pub fn curl() -> PathBuf {
     crate::platform::which("curl").unwrap_or_else(|| PathBuf::from("curl"))
 }

@@ -47,6 +47,7 @@ fn command(name: &str) -> Command {
 /// A command for any program, without a console window popping up.
 #[allow(unused_mut)]
 pub fn quiet(program: &Path) -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut c = Command::new(program);
     #[cfg(windows)]
     {
@@ -94,13 +95,29 @@ pub fn video_size(file: &Path) -> Option<(u32, u32)> {
 }
 
 /// Ends a program and everything it started (Office, Edge and LibreOffice spawn helpers).
+/// macOS: the program and all its descendants, found level by level with pgrep (no /proc).
+#[cfg(target_os = "macos")]
+pub fn kill_tree(pid: u32) {
+    let mut all = vec![pid];
+    let mut i = 0;
+    while i < all.len() && all.len() < 4096 {
+        if let Ok(o) = Command::new("/usr/bin/pgrep").args(["-P", &all[i].to_string()]).output() {
+            all.extend(String::from_utf8_lossy(&o.stdout).split_whitespace().filter_map(|s| s.parse::<u32>().ok()));
+        }
+        i += 1;
+    }
+    for p in all {
+        unsafe { libc::kill(p as i32, libc::SIGKILL) };
+    }
+}
+
 #[cfg(windows)]
 pub fn kill_tree(pid: u32) {
     let _ = quiet(Path::new("taskkill")).args(["/F", "/T", "/PID", &pid.to_string()]).output();
 }
 
 /// Linux: the program and its descendants, found through /proc parent ids.
-#[cfg(not(windows))]
+#[cfg(all(unix, not(target_os = "macos")))]
 pub fn kill_tree(pid: u32) {
     let mut parents: Vec<(u32, u32)> = Vec::new();
     if let Ok(rd) = std::fs::read_dir("/proc") {
