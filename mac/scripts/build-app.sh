@@ -12,7 +12,10 @@ BS=""; swift build --help 2>/dev/null | grep -q swiftbuild && BS="--build-system
 for p in Rotae sd-native rotae-cli; do swift build -c release $BS --product $p; done
 APP=build/Rotae.app
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources/vi.lproj" "$APP/Contents/Resources/en.lproj"
-cp .build/release/Rotae .build/release/sd-native .build/release/rotae-cli engine/target/release/sd-engine "$APP/Contents/MacOS/"
+# Swift Build puts its products somewhere else than the native build system does
+BIN="$(swift build -c release $BS --show-bin-path 2>/dev/null || true)"
+[ -x "$BIN/Rotae" ] || BIN="$(dirname "$(find .build -type f -perm -111 -name Rotae -ipath '*release*' | head -1)")"
+cp "$BIN/Rotae" "$BIN/sd-native" "$BIN/rotae-cli" engine/target/release/sd-engine "$APP/Contents/MacOS/"
 # SwiftPM records the deployment target as the SDK too, and macOS then treats the app as built
 # for an old system and withholds the current design (Liquid Glass). Record the SDK really used.
 SDKV="$(xcrun --sdk macosx --show-sdk-version)"
