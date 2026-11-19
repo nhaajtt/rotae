@@ -709,6 +709,8 @@ fn scratch_folder_is_private_to_the_user() {
 fn csv_quotes_only_open_at_the_start_of_a_field() {
     let rows = super::text::parse_csv("item,size\n12\" pipe,5\n\"a, b\",\"say \"\"hi\"\"\"\n", ',');
     assert_eq!(rows, vec![vec!["item", "size"], vec!["12\" pipe", "5"], vec!["a, b", "say \"hi\""]]);
+    // a quote after spaces opens the field too (hand-written files)
+    assert_eq!(super::text::parse_csv("a, \"b, c\"\r\n", ','), vec![vec!["a", " b, c"]]);
 }
 
 #[test]

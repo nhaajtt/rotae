@@ -451,7 +451,8 @@ pub(crate) fn parse_csv(text: &str, sep: char) -> Vec<Vec<String>> {
             }
             c => field.push(c),
         }
-        fresh = false;
+        // `a, "b, c"`: spaces before the opening quote still count as the field's start
+        fresh = !quoted && field.chars().all(|c| c == ' ' || c == '\t');
     }
     if !field.is_empty() || !row.is_empty() {
         row.push(field);
