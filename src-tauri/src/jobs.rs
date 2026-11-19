@@ -290,4 +290,15 @@ mod tests {
         assert!(!s.contains("Secr") && !s.contains("abc") && !s.contains("iVBOR"), "{s}");
         assert_eq!(s.matches("•••").count(), 3);
     }
+
+    /// tests/fixtures/actions.json is every action the wheel and hub can send (written by the JS
+    /// tests); each one must still parse, or that menu entry would fail with a bare error.
+    #[test]
+    fn every_action_the_ui_sends_parses() {
+        let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/actions.json");
+        let list: Vec<serde_json::Value> = serde_json::from_str(&std::fs::read_to_string(&file).expect("run npm test first")).unwrap();
+        assert!(list.len() > 40);
+        let bad: Vec<String> = list.iter().filter_map(|a| serde_json::from_value::<super::Action>(a.clone()).err().map(|e| format!("{a}: {e}"))).collect();
+        assert!(bad.is_empty(), "actions the backend can't read:\n{}", bad.join("\n"));
+    }
 }

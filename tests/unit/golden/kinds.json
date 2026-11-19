@@ -1,0 +1,235 @@
+{
+ "png": {
+  "kind": "image",
+  "kinds": [
+   "image"
+  ]
+ },
+ "heic": {
+  "kind": "image",
+  "kinds": [
+   "image"
+  ]
+ },
+ "raw": {
+  "kind": "image",
+  "kinds": [
+   "image"
+  ]
+ },
+ "gif": {
+  "kind": "image",
+  "kinds": [
+   "image"
+  ]
+ },
+ "images": {
+  "kind": "image",
+  "kinds": [
+   "image",
+   "image",
+   "image"
+  ]
+ },
+ "mp4": {
+  "kind": "video",
+  "kinds": [
+   "video"
+  ]
+ },
+ "videos": {
+  "kind": "video",
+  "kinds": [
+   "video",
+   "video"
+  ]
+ },
+ "mp3": {
+  "kind": "audio",
+  "kinds": [
+   "audio"
+  ]
+ },
+ "audios": {
+  "kind": "audio",
+  "kinds": [
+   "audio",
+   "audio"
+  ]
+ },
+ "pdf": {
+  "kind": "pdf",
+  "kinds": [
+   "pdf"
+  ]
+ },
+ "pdfs": {
+  "kind": "pdf",
+  "kinds": [
+   "pdf",
+   "pdf"
+  ]
+ },
+ "imageAndPdf": {
+  "kind": "mixed",
+  "kinds": [
+   "image",
+   "pdf"
+  ]
+ },
+ "txt": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "json": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "csv": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "md": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "html": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "yaml": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "xml": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "code": {
+  "kind": "text",
+  "kinds": [
+   "text"
+  ]
+ },
+ "texts": {
+  "kind": "text",
+  "kinds": [
+   "text",
+   "text"
+  ]
+ },
+ "docx": {
+  "kind": "office",
+  "kinds": [
+   "office"
+  ]
+ },
+ "xlsx": {
+  "kind": "office",
+  "kinds": [
+   "office"
+  ]
+ },
+ "pptx": {
+  "kind": "office",
+  "kinds": [
+   "office"
+  ]
+ },
+ "exe": {
+  "kind": "exe",
+  "kinds": [
+   "exe"
+  ]
+ },
+ "dll": {
+  "kind": "exe",
+  "kinds": [
+   "exe"
+  ]
+ },
+ "exes": {
+  "kind": "exe",
+  "kinds": [
+   "exe",
+   "exe"
+  ]
+ },
+ "zip": {
+  "kind": "archive",
+  "kinds": [
+   "archive"
+  ]
+ },
+ "zips": {
+  "kind": "archive",
+  "kinds": [
+   "archive",
+   "archive"
+  ]
+ },
+ "pcap": {
+  "kind": "pcap",
+  "kinds": [
+   "pcap"
+  ]
+ },
+ "apk": {
+  "kind": "apk",
+  "kinds": [
+   "apk"
+  ]
+ },
+ "age": {
+  "kind": "other",
+  "kinds": [
+   "other"
+  ]
+ },
+ "other": {
+  "kind": "other",
+  "kinds": [
+   "other"
+  ]
+ },
+ "noext": {
+  "kind": "other",
+  "kinds": [
+   "other"
+  ]
+ },
+ "folderish": {
+  "kind": "other",
+  "kinds": [
+   "other"
+  ]
+ },
+ "mixed": {
+  "kind": "mixed",
+  "kinds": [
+   "image",
+   "audio"
+  ]
+ },
+ "two": {
+  "kind": "other",
+  "kinds": [
+   "other",
+   "other"
+  ]
+ }
+}
