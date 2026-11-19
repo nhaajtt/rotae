@@ -19,7 +19,14 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let help = MenuItem::with_id(app, "welcome", "How to use", true, None::<&str>)?;
     let activity = MenuItem::with_id(app, "activity", "Activity (results and errors)", true, None::<&str>)?;
     let enabled = CheckMenuItem::with_id(app, "enabled", "Enabled", true, s.enabled, None::<&str>)?;
-    let explorer = CheckMenuItem::with_id(app, "explorer_only", if cfg!(windows) { "Only from File Explorer and desktop" } else { "Only from the file manager" }, true, s.explorer_only, None::<&str>)?;
+    let explorer = CheckMenuItem::with_id(
+        app,
+        "explorer_only",
+        if cfg!(windows) { "Only from File Explorer and desktop" } else { "Only from the file manager" },
+        true,
+        s.explorer_only,
+        None::<&str>,
+    )?;
     let startup = CheckMenuItem::with_id(app, "autostart", if cfg!(windows) { "Start with Windows" } else { "Start at login" }, true, autostart, None::<&str>)?;
 
     let accent = Submenu::with_id(app, "accent", "Accent", true)?;

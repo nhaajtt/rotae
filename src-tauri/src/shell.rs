@@ -230,11 +230,7 @@ pub async fn context_menu(enable: bool) -> Result<(), String> {
 #[tauri::command]
 pub async fn context_menu_on() -> bool {
     #[cfg(windows)]
-    return crate::engines::tools::quiet(Path::new("reg"))
-        .args(["query", r"HKCU\Software\Classes\*\shell\Rotae\command"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    return crate::engines::tools::quiet(Path::new("reg")).args(["query", r"HKCU\Software\Classes\*\shell\Rotae\command"]).output().map(|o| o.status.success()).unwrap_or(false);
     #[cfg(not(windows))]
     linux_menu::is_on()
 }
@@ -293,7 +289,11 @@ mod linux_menu {
         }
         let exe = exe()?;
         write(&nautilus, &format!("#!/bin/sh\n# Rotae: actions for the selected files\nset -f\nIFS='\n'\nexec \"{exe}\" --open $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS\n"), true)?;
-        write(&nemo, &format!("[Nemo Action]\nName=Rotae…\nComment=Convert, compress, check and share\nExec=\"{exe}\" --open %F\nIcon-Name=rotae\nSelection=notnone\nExtensions=any;\n"), false)?;
+        write(
+            &nemo,
+            &format!("[Nemo Action]\nName=Rotae…\nComment=Convert, compress, check and share\nExec=\"{exe}\" --open %F\nIcon-Name=rotae\nSelection=notnone\nExtensions=any;\n"),
+            false,
+        )?;
         write(&dolphin, &format!("[Desktop Entry]\nType=Service\nMimeType=application/octet-stream;inode/directory;all/allfiles;\nActions=rotae\nX-KDE-Priority=TopLevel\n\n[Desktop Action rotae]\nName=Rotae…\nIcon=rotae\nExec=\"{exe}\" --open %F\n"), true)?;
         write(&open_with, &format!("[Desktop Entry]\nType=Application\nName=Rotae\nComment=Convert, compress, check and share files\nExec=\"{exe}\" --open %F\nIcon=rotae\nTerminal=false\nNoDisplay=true\nMimeType=application/octet-stream;application/pdf;image/png;image/jpeg;image/webp;video/mp4;audio/mpeg;text/plain;\n"), false)?;
         thunar(Some(&exe))

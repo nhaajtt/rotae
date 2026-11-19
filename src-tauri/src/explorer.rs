@@ -3,24 +3,24 @@
 
 use std::path::PathBuf;
 use windows::{
+    core::Interface,
     core::Result,
     Win32::{
         Foundation::{HWND, POINT},
-        System::Variant::{VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_I4},
         System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, IServiceProvider, CLSCTX_ALL, COINIT_APARTMENTTHREADED},
+        System::Variant::{VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_I4},
         UI::{
             Accessibility::{
-                CUIAutomation, IUIAutomation, IUIAutomation2, IUIAutomationElement, UIA_DataItemControlTypeId, UIA_ListControlTypeId, UIA_ListItemControlTypeId, UIA_TreeControlTypeId,
-                UIA_TreeItemControlTypeId,
+                CUIAutomation, IUIAutomation, IUIAutomation2, IUIAutomationElement, UIA_DataItemControlTypeId, UIA_ListControlTypeId, UIA_ListItemControlTypeId,
+                UIA_TreeControlTypeId, UIA_TreeItemControlTypeId,
             },
             Shell::{
-                IFolderView, IShellBrowser, IShellItemArray, IShellWindows, IWebBrowserApp, SID_STopLevelBrowser, ShellWindows,
-                SIGDN_FILESYSPATH, SVGIO_SELECTION, SWC_DESKTOP, SWFO_NEEDDISPATCH,
+                IFolderView, IShellBrowser, IShellItemArray, IShellWindows, IWebBrowserApp, SID_STopLevelBrowser, ShellWindows, SIGDN_FILESYSPATH, SVGIO_SELECTION, SWC_DESKTOP,
+                SWFO_NEEDDISPATCH,
             },
             WindowsAndMessaging::{GetClassNameW, IsWindowVisible},
         },
     },
-    core::Interface,
 };
 
 /// `root` is the top-level window under the point where the drag started.
@@ -124,13 +124,8 @@ unsafe fn find(root: HWND) -> Result<Vec<PathBuf>> {
 }
 
 fn int(v: i32) -> VARIANT {
-    VARIANT {
-        Anonymous: VARIANT_0 {
-            Anonymous: std::mem::ManuallyDrop::new(VARIANT_0_0 { vt: VT_I4, Anonymous: VARIANT_0_0_0 { lVal: v }, ..Default::default() }),
-        },
-    }
+    VARIANT { Anonymous: VARIANT_0 { Anonymous: std::mem::ManuallyDrop::new(VARIANT_0_0 { vt: VT_I4, Anonymous: VARIANT_0_0_0 { lVal: v }, ..Default::default() }) } }
 }
-
 
 unsafe fn selected(browser: &IShellBrowser) -> Result<Vec<PathBuf>> {
     let view: IFolderView = browser.QueryActiveShellView()?.cast()?;
@@ -167,7 +162,9 @@ mod tests {
             let shell: IShellWindows = CoCreateInstance(&ShellWindows, None, CLSCTX_ALL).unwrap();
             // only the window this test opened, never one of the user's
             let ours = || -> Option<IWebBrowserApp> {
-                (0..shell.Count().ok()?).filter_map(|i| shell.Item(&int(i)).ok()?.cast::<IWebBrowserApp>().ok()).find(|a| a.LocationURL().is_ok_and(|u| u.to_string().contains("rotae-tests/rubber")))
+                (0..shell.Count().ok()?)
+                    .filter_map(|i| shell.Item(&int(i)).ok()?.cast::<IWebBrowserApp>().ok())
+                    .find(|a| a.LocationURL().is_ok_and(|u| u.to_string().contains("rotae-tests/rubber")))
             };
             let mut app = None;
             for _ in 0..40 {
@@ -181,7 +178,10 @@ mod tests {
             let hwnd = HWND(app.HWND().unwrap().0 as _);
             let result = std::panic::catch_unwind(|| {
                 let cond = uia
-                    .CreateAndCondition(&uia.CreatePropertyCondition(UIA_NamePropertyId, &VARIANT::from("first.txt")).unwrap(), &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &int(UIA_ListItemControlTypeId.0)).unwrap())
+                    .CreateAndCondition(
+                        &uia.CreatePropertyCondition(UIA_NamePropertyId, &VARIANT::from("first.txt")).unwrap(),
+                        &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &int(UIA_ListItemControlTypeId.0)).unwrap(),
+                    )
                     .unwrap();
                 let win = uia.ElementFromHandle(hwnd).unwrap();
                 let mut item = None;

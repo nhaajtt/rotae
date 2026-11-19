@@ -187,18 +187,30 @@ impl Frame {
             // page.width/height are already turned by /Rotate
             let (w, h) = (page.width().value, page.height().value);
             let rot = rotation_deg(page.rotation().unwrap_or(PdfPageRenderRotation::None));
-            if rot % 180 == 90 { PdfRect::new_from_values(0.0, 0.0, w, h) } else { PdfRect::new_from_values(0.0, 0.0, h, w) }
+            if rot % 180 == 90 {
+                PdfRect::new_from_values(0.0, 0.0, w, h)
+            } else {
+                PdfRect::new_from_values(0.0, 0.0, h, w)
+            }
         });
         let rot = rotation_deg(page.rotation().unwrap_or(PdfPageRenderRotation::None));
         Frame { rot, left: r.left().value, bottom: r.bottom().value, w: r.width().value, h: r.height().value }
     }
 
     fn w_shown(&self) -> f32 {
-        if self.rot % 180 == 90 { self.h } else { self.w }
+        if self.rot % 180 == 90 {
+            self.h
+        } else {
+            self.w
+        }
     }
 
     fn h_shown(&self) -> f32 {
-        if self.rot % 180 == 90 { self.w } else { self.h }
+        if self.rot % 180 == 90 {
+            self.w
+        } else {
+            self.h
+        }
     }
 
     /// Page space point for (x, y) measured from the bottom-left of the page as shown.
@@ -312,10 +324,7 @@ fn qpdf_with_secret(args: &[&str], src: &Path, out: &Path) -> Result<std::proces
     }
     let file = temp_file("args");
     std::fs::write(&file, args.join("\n"))?;
-    let r = super::tools::output_within(
-        super::tools::quiet(&qpdf()?).arg(format!("@{}", file.display())).arg(src).arg(out),
-        std::time::Duration::from_secs(300),
-    );
+    let r = super::tools::output_within(super::tools::quiet(&qpdf()?).arg(format!("@{}", file.display())).arg(src).arg(out), std::time::Duration::from_secs(300));
     let _ = std::fs::remove_file(&file);
     r
 }

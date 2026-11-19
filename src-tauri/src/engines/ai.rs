@@ -193,13 +193,12 @@ fn upscale(src: &Path, scale: u32) -> Result<PathBuf> {
     img.save(&png)?;
     let tmp_out = temp_file("png");
     let o = super::tools::output_within(
-        super::tools::quiet(&exe)
-            .current_dir(exe.parent().context("no folder")?)
-            .arg("-i")
-            .arg(&png)
-            .arg("-o")
-            .arg(&tmp_out)
-            .args(["-n", "realesrgan-x4plus", "-s", &scale.to_string()]),
+        super::tools::quiet(&exe).current_dir(exe.parent().context("no folder")?).arg("-i").arg(&png).arg("-o").arg(&tmp_out).args([
+            "-n",
+            "realesrgan-x4plus",
+            "-s",
+            &scale.to_string(),
+        ]),
         std::time::Duration::from_secs(1200),
     )?;
     let _ = std::fs::remove_file(&png);

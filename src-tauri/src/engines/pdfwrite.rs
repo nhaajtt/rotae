@@ -41,10 +41,7 @@ pub fn write(out: &Path, pages: &[Page]) -> Result<()> {
         obj(
             &mut buf,
             &mut offsets,
-            format!(
-                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w:.2} {h:.2}] /Resources << /XObject << /Im0 {img_id} 0 R >> >> /Contents {content_id} 0 R >>"
-            )
-            .as_bytes(),
+            format!("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w:.2} {h:.2}] /Resources << /XObject << /Im0 {img_id} 0 R >> >> /Contents {content_id} 0 R >>").as_bytes(),
         );
         debug_assert_eq!(offsets.len(), page_id);
         let mut img = format!(

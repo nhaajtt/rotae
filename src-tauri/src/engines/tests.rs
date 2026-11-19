@@ -23,7 +23,8 @@ fn pdf_printer() -> bool {
     if std::env::var_os("ROTAE_SKIP_PDF_PRINT").is_some() {
         return false;
     }
-    cfg!(windows) || ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().any(|n| crate::platform::which(n).is_some())
+    cfg!(windows)
+        || ["chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "microsoft-edge"].iter().any(|n| crate::platform::which(n).is_some())
 }
 
 fn workdir(name: &str) -> PathBuf {
@@ -98,7 +99,24 @@ fn media() {
     let mp4 = d.join("Clip.mp4");
     let silent = d.join("Silent.mp4");
     let mp3 = d.join("Song.mp3");
-    ffmpeg(&["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=3", "-f", "lavfi", "-i", "sine=f=440:duration=3", "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", mp4.to_str().unwrap()]);
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc=size=640x360:rate=30:duration=3",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=f=440:duration=3",
+        "-shortest",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        mp4.to_str().unwrap(),
+    ]);
     ffmpeg(&["-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", silent.to_str().unwrap()]);
     ffmpeg(&["-f", "lavfi", "-i", "sine=f=330:duration=3", "-c:a", "libmp3lame", mp3.to_str().unwrap()]);
     assert!((tools::duration(&mp4) - 3.0).abs() < 0.2);
@@ -234,7 +252,24 @@ fn security_and_dev() {
 fn media_extras() {
     let d = workdir("media_extras");
     let mp4 = d.join("Talk.mp4");
-    ffmpeg(&["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=4", "-f", "lavfi", "-i", "sine=f=440:duration=4", "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", mp4.to_str().unwrap()]);
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc=size=640x360:rate=30:duration=4",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=f=440:duration=4",
+        "-shortest",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        mp4.to_str().unwrap(),
+    ]);
     let v = vec![mp4.clone()];
     let small = check(&v, Action::TargetSize { mb: 0.5 });
     assert!(std::fs::metadata(&small[0]).unwrap().len() < 512 * 1024);
@@ -279,7 +314,17 @@ fn image_extras() {
 
     // text rendered by ffmpeg, read back by Windows OCR
     let words = d.join("Words.png");
-    ffmpeg(&["-f", "lavfi", "-i", "color=white:size=900x200", "-frames:v", "1", "-vf", r"drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='HELLO OCR 2026':fontsize=72:x=40:y=60", words.to_str().unwrap()]);
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        "color=white:size=900x200",
+        "-frames:v",
+        "1",
+        "-vf",
+        r"drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='HELLO OCR 2026':fontsize=72:x=40:y=60",
+        words.to_str().unwrap(),
+    ]);
     // build servers may have no OCR language installed; on a normal PC this must work
     match super::imagex::ocr_text(&words) {
         Ok(t) => assert!(t.contains("HELLO") && t.contains("2026"), "{t}"),
@@ -320,7 +365,10 @@ fn recipes() {
     assert_eq!(std::fs::read_dir(&d).unwrap().count(), 2, "{out:?}");
     let txt = d.join("note.txt");
     std::fs::write(&txt, "x").unwrap();
-    let made = check(&[txt], Action::Custom { command: if cfg!(windows) { "copy {file} \"{stem} copy.{ext}\" >nul && echo ok" } else { "cp {file} \"{stem} copy.{ext}\" && echo ok" }.into() });
+    let made = check(
+        &[txt],
+        Action::Custom { command: if cfg!(windows) { "copy {file} \"{stem} copy.{ext}\" >nul && echo ok" } else { "cp {file} \"{stem} copy.{ext}\" && echo ok" }.into() },
+    );
     assert!(made[0].ends_with("note copy.txt"), "{made:?}");
 }
 
@@ -329,13 +377,17 @@ fn docx_to_markdown() {
     let d = workdir("docx");
     let w = d.join("src").join("word");
     std::fs::create_dir_all(&w).unwrap();
-    std::fs::write(w.join("document.xml"), r#"<?xml version="1.0"?><w:document xmlns:w="x"><w:body>
+    std::fs::write(
+        w.join("document.xml"),
+        r#"<?xml version="1.0"?><w:document xmlns:w="x"><w:body>
 <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Báo cáo</w:t></w:r></w:p>
 <w:p><w:r><w:t xml:space="preserve">Plain and </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>bold</w:t></w:r></w:p>
 <w:p><w:pPr><w:numPr/></w:pPr><w:r><w:t>item one</w:t></w:r></w:p>
 <w:tbl><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr>
 <w:tr><w:tc><w:p><w:r><w:t>1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
-</w:body></w:document>"#).unwrap();
+</w:body></w:document>"#,
+    )
+    .unwrap();
     let docx = d.join("Report.docx");
     let ok = zip_docx(&docx, &d.join("src"));
     assert!(ok);
@@ -349,10 +401,14 @@ fn docx_keeps_literal_marks_and_ignores_tab_stops() {
     let d = workdir("docx-marks");
     let w = d.join("src").join("word");
     std::fs::create_dir_all(&w).unwrap();
-    std::fs::write(w.join("document.xml"), r#"<?xml version="1.0"?><w:document xmlns:w="x"><w:body>
+    std::fs::write(
+        w.join("document.xml"),
+        r#"<?xml version="1.0"?><w:document xmlns:w="x"><w:body>
 <w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/></w:tabs></w:pPr><w:r><w:t>__init__ and a****b</w:t></w:r></w:p>
 <w:p><w:r><w:t>left</w:t><w:tab/><w:t>right</w:t></w:r></w:p>
-</w:body></w:document>"#).unwrap();
+</w:body></w:document>"#,
+    )
+    .unwrap();
     let docx = d.join("Marks.docx");
     assert!(zip_docx(&docx, &d.join("src")));
     let md = check(&[docx], conv("md"));
@@ -516,7 +572,10 @@ fn toml_dates_become_plain_text() {
 fn markdown_and_html_cant_navigate_when_printed() {
     let md = super::text::markdown("hi <meta http-equiv=\"refresh\" content=\"0;url=file:///C:/x\">\n\n<iframe src=\"file:///C:/x\"></iframe>\n");
     assert!(!md.contains("<meta") && !md.contains("<iframe") && md.contains("&lt;meta"), "{md}");
-    let html = super::text::lock_html("<!DOCTYPE html><html><head><META content=\"0;url=file:///C:/a>b\" HTTP-EQUIV=refresh><meta charset=utf-8></head><body>x</body></html>", "file:///C:/d/");
+    let html = super::text::lock_html(
+        "<!DOCTYPE html><html><head><META content=\"0;url=file:///C:/a>b\" HTTP-EQUIV=refresh><meta charset=utf-8></head><body>x</body></html>",
+        "file:///C:/d/",
+    );
     assert!(html.starts_with("<!DOCTYPE html><meta http-equiv=\"Content-Security-Policy\""), "{html}");
     assert!(!html.to_lowercase().contains("refresh") && html.contains("<meta charset=utf-8>") && html.contains("<body>x</body>"), "{html}");
 }
@@ -561,10 +620,12 @@ fn base64_without_padding_decodes() {
 
 #[test]
 fn docx_breaks_in_cells_and_empty_text() {
-    let md = super::docx::convert(r#"<w:document xmlns:w="x"><w:body>
+    let md = super::docx::convert(
+        r#"<w:document xmlns:w="x"><w:body>
 <w:tbl><w:tr><w:tc><w:p><w:r><w:t>a</w:t><w:br/><w:t>b</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
 <w:p><w:r><w:t/></w:r><w:r><w:instrText>HIDDEN</w:instrText></w:r><w:r><w:t>shown</w:t></w:r></w:p>
-</w:body></w:document>"#)
+</w:body></w:document>"#,
+    )
     .unwrap();
     assert!(md.contains("| a<br>b | c |") && !md.contains("HIDDEN") && md.contains("shown"), "{md}");
 }

@@ -117,9 +117,8 @@ fn ms_office_app(src: &Path) -> Option<&'static str> {
 fn installed(app: &str) -> bool {
     static CACHE: OnceLock<[bool; 3]> = OnceLock::new();
     let found = CACHE.get_or_init(|| {
-        ["Word", "Excel", "PowerPoint"].map(|a| {
-            super::tools::quiet(Path::new("reg")).args(["query", &format!("HKCR\\{a}.Application\\CLSID")]).output().map(|o| o.status.success()).unwrap_or(false)
-        })
+        ["Word", "Excel", "PowerPoint"]
+            .map(|a| super::tools::quiet(Path::new("reg")).args(["query", &format!("HKCR\\{a}.Application\\CLSID")]).output().map(|o| o.status.success()).unwrap_or(false))
     });
     match app {
         "Word" => found[0],

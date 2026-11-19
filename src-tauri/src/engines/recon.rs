@@ -117,7 +117,11 @@ impl Scope {
                 None => (false, line),
             };
             if let Some(e) = parse_entry(body) {
-                if deny { s.deny.push(e) } else { s.allow.push(e) }
+                if deny {
+                    s.deny.push(e)
+                } else {
+                    s.allow.push(e)
+                }
             }
         }
         s
@@ -179,7 +183,11 @@ impl Target {
             Target::Net(ip, b) => {
                 let w = if ip.is_ipv4() { 32 } else { 128 };
                 let free = w - b;
-                if free >= 127 { u128::MAX } else { 1u128 << free }
+                if free >= 127 {
+                    u128::MAX
+                } else {
+                    1u128 << free
+                }
             }
         }
     }
@@ -212,9 +220,8 @@ pub struct Plan {
 pub fn plan(src: &Path) -> Result<Plan> {
     let folder = src.parent().context("no folder")?.to_path_buf();
     let scope_path = folder.join(SCOPE_FILE);
-    let text = std::fs::read_to_string(&scope_path).map_err(|_| {
-        anyhow::anyhow!("recon needs a scope.txt in the same folder listing what you are authorized to test (one host, *.domain or network per line)")
-    })?;
+    let text = std::fs::read_to_string(&scope_path)
+        .map_err(|_| anyhow::anyhow!("recon needs a scope.txt in the same folder listing what you are authorized to test (one host, *.domain or network per line)"))?;
     let scope = Scope::parse(&text);
     if scope.is_empty() {
         bail!("scope.txt lists nothing to test: add the hosts, *.domains or networks you are authorized for");
@@ -247,7 +254,10 @@ pub fn plan(src: &Path) -> Result<Plan> {
     }
     let total: u128 = targets.iter().map(Target::addresses).fold(0u128, |a, b| a.saturating_add(b));
     if total > MAX_ADDRESSES {
-        bail!("these targets cover {} addresses; one run may touch at most {MAX_ADDRESSES} (a /24). Split them into smaller target files", if total == u128::MAX { "too many".into() } else { total.to_string() });
+        bail!(
+            "these targets cover {} addresses; one run may touch at most {MAX_ADDRESSES} (a /24). Split them into smaller target files",
+            if total == u128::MAX { "too many".into() } else { total.to_string() }
+        );
     }
     Ok(Plan { scope, folder, targets, refused })
 }
@@ -297,7 +307,11 @@ pub fn parse_nmap(xml: &str) -> Vec<Finding> {
     let mut out = Vec::new();
     let (mut host, mut port, mut proto, mut open, mut service) = (String::new(), String::new(), String::new(), false, String::new());
     let attr = |e: &quick_xml::events::BytesStart, k: &str| {
-        e.attributes().flatten().find(|a| a.key.local_name().as_ref() == k).and_then(|a| a.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok().map(|v| v.into_owned())).unwrap_or_default()
+        e.attributes()
+            .flatten()
+            .find(|a| a.key.local_name().as_ref() == k)
+            .and_then(|a| a.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok().map(|v| v.into_owned()))
+            .unwrap_or_default()
     };
     loop {
         match r.read_event() {
@@ -322,7 +336,8 @@ pub fn parse_nmap(xml: &str) -> Vec<Finding> {
                 }
                 "state" => open = attr(&e, "state") == "open",
                 "service" => {
-                    service = [attr(&e, "name"), attr(&e, "product"), attr(&e, "version"), attr(&e, "extrainfo")].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+                    service =
+                        [attr(&e, "name"), attr(&e, "product"), attr(&e, "version"), attr(&e, "extrainfo")].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
                 }
                 _ => {}
             },

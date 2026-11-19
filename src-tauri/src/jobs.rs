@@ -58,9 +58,7 @@ fn history_file(app: &AppHandle) -> Option<PathBuf> {
 
 fn with_history<T>(app: &AppHandle, f: impl FnOnce(&mut Vec<Record>) -> T) -> T {
     let mut h = HISTORY.lock().unwrap_or_else(|e| e.into_inner());
-    let list = h.get_or_insert_with(|| {
-        history_file(app).and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
-    });
+    let list = h.get_or_insert_with(|| history_file(app).and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default());
     f(list)
 }
 
@@ -176,8 +174,7 @@ fn crashed(app: &AppHandle, id: u64, title: &str, paths: &[PathBuf]) {
 
 fn run(app: &AppHandle, job: Job) {
     // Merge is one unit of work; everything else runs once per file.
-    let units: Vec<Vec<PathBuf>> =
-        if engines::is_group(&job.action) { vec![job.paths.clone()] } else { job.paths.iter().map(|p| vec![p.clone()]).collect() };
+    let units: Vec<Vec<PathBuf>> = if engines::is_group(&job.action) { vec![job.paths.clone()] } else { job.paths.iter().map(|p| vec![p.clone()]).collect() };
     let total = units.len();
     let mut outputs = Vec::new();
     let mut errors = Vec::new();
@@ -210,8 +207,12 @@ fn run(app: &AppHandle, job: Job) {
     crate::log(&format!("job {} done: {outputs:?} errors: {errors:?}", job.id));
     crate::watch::made(&outputs);
     let notes = engines::take_notes();
-    let note = (!notes.is_empty()).then(|| notes.join("
-"));
+    let note = (!notes.is_empty()).then(|| {
+        notes.join(
+            "
+",
+        )
+    });
     let state = if done == 0 { "error" } else { "done" };
     remember(
         app,
@@ -220,7 +221,13 @@ fn run(app: &AppHandle, job: Job) {
             time: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
             title: job.title.clone(),
             files: job.paths.iter().map(|p| p.display().to_string()).collect(),
-            state: if errors.is_empty() { state.into() } else if done > 0 { "partial".into() } else { "error".into() },
+            state: if errors.is_empty() {
+                state.into()
+            } else if done > 0 {
+                "partial".into()
+            } else {
+                "error".into()
+            },
             outputs: outputs.iter().map(|p| p.display().to_string()).collect(),
             error: error.clone(),
             note: note.clone(),
@@ -241,7 +248,8 @@ pub fn queue(app: &AppHandle, paths: Vec<PathBuf>, action: Action, title: String
     use tauri::Manager;
     // ids keep growing across restarts so the Activity list never mixes two jobs up
     static ID: AtomicU64 = AtomicU64::new(0);
-    let _ = ID.compare_exchange(0, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(1), Ordering::SeqCst, Ordering::SeqCst);
+    let _ =
+        ID.compare_exchange(0, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(1), Ordering::SeqCst, Ordering::SeqCst);
     // folders only make sense for zip and copy-path
     let folders_ok = matches!(action, Action::Zip | Action::CopyPath | Action::CopyPathAs { .. });
     let paths: Vec<PathBuf> = paths.into_iter().filter(|p| p.is_file() || (folders_ok && p.is_dir())).collect();

@@ -68,16 +68,11 @@ fn probe(args: &[&str], file: &Path) -> Result<String> {
 }
 
 pub fn duration(file: &Path) -> f64 {
-    probe(&["-show_entries", "format=duration", "-of", "csv=p=0"], file)
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0.0)
+    probe(&["-show_entries", "format=duration", "-of", "csv=p=0"], file).ok().and_then(|s| s.parse().ok()).unwrap_or(0.0)
 }
 
 pub fn has_audio(file: &Path) -> bool {
-    probe(&["-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0"], file)
-        .map(|s| !s.is_empty())
-        .unwrap_or(false)
+    probe(&["-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0"], file).map(|s| !s.is_empty()).unwrap_or(false)
 }
 
 pub fn video_size(file: &Path) -> Option<(u32, u32)> {
@@ -192,7 +187,10 @@ pub fn adopt(pid: u32) {
         use windows_sys::Win32::{
             Foundation::{CloseHandle, HANDLE},
             System::{
-                JobObjects::{AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE},
+                JobObjects::{
+                    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                },
                 Threading::{OpenProcess, TerminateProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE},
             },
         };

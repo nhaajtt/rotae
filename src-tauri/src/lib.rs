@@ -9,15 +9,15 @@ mod platform;
 mod settings;
 mod share;
 mod shell;
-mod watch;
 mod tray;
+mod watch;
 #[cfg(windows)]
 mod win;
 mod windows;
-#[cfg(target_os = "linux")]
-mod x11drag;
 #[cfg(windows)]
 mod winrt;
+#[cfg(target_os = "linux")]
+mod x11drag;
 
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
@@ -270,7 +270,10 @@ pub fn run() {
                     windows::show_overlay(&h, 1000, 600, &[f.into()]);
                     std::thread::sleep(std::time::Duration::from_millis(500));
                     // ROTAE_DEMO_HOVER=dx,dy points somewhere else than the top wedge
-                    let (dx, dy) = std::env::var("ROTAE_DEMO_HOVER").ok().and_then(|v| v.split_once(',').and_then(|(a, b)| Some((a.trim().parse().ok()?, b.trim().parse().ok()?)))).unwrap_or((0, -100));
+                    let (dx, dy) = std::env::var("ROTAE_DEMO_HOVER")
+                        .ok()
+                        .and_then(|v| v.split_once(',').and_then(|(a, b)| Some((a.trim().parse().ok()?, b.trim().parse().ok()?))))
+                        .unwrap_or((0, -100));
                     windows::overlay_pointer(&h, 1000 + dx, 600 + dy, false);
                     if std::env::var_os("ROTAE_DEMO_DROP").is_some() {
                         std::thread::sleep(std::time::Duration::from_secs(4));

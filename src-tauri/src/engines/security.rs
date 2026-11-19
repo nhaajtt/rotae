@@ -75,7 +75,10 @@ const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", 
 #[cfg(not(target_os = "macos"))]
 const SCRIPT_EXT: &[&str] = &["bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "hta", "lnk", "msi", "sh"];
 #[cfg(target_os = "macos")]
-const PROGRAM_EXT: &[&str] = &["exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin", "o", "ko", "out", "run", "appimage", "app", "dylib", "pkg", "mpkg", "dmg", "macho", "kext"];
+const PROGRAM_EXT: &[&str] = &[
+    "exe", "dll", "sys", "scr", "com", "cpl", "ocx", "drv", "efi", "msi", "elf", "so", "bin", "o", "ko", "out", "run", "appimage", "app", "dylib", "pkg", "mpkg", "dmg", "macho",
+    "kext",
+];
 #[cfg(target_os = "macos")]
 const SCRIPT_EXT: &[&str] = &["bat", "cmd", "ps1", "vbs", "js", "jse", "wsf", "hta", "lnk", "msi", "sh", "command", "tool", "scpt", "applescript", "workflow"];
 
@@ -634,12 +637,7 @@ pub const TOOLS: &[(&str, &str, &str, &str)] = &[
     ("qpdf", "qpdf/qpdf", "msvc64", "qpdf.exe"),
     ("yara", "VirusTotal/yara-x", "windows", "yr.exe"),
     ("whisper", "ggml-org/whisper.cpp", "whisper-bin-x64", "whisper-cli.exe"),
-    (
-        "upscale",
-        "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
-        "",
-        "realesrgan-ncnn-vulkan.exe",
-    ),
+    ("upscale", "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip", "", "realesrgan-ncnn-vulkan.exe"),
     ("ai", "https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-win-x64-1.22.0.zip", "", "onnxruntime.dll"),
 ];
 
@@ -649,7 +647,11 @@ fn tool_extras(id: &str) -> &'static [(&'static str, &'static str, u64)] {
         "whisper" => &[(WHISPER_MODEL, "ggml-base.bin", 10_000_000)],
         "ai" => &[
             ("https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx", "isnet-general-use.onnx", 10_000_000),
-            ("https://github.com/onnx/models/raw/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx", "version-RFB-320.onnx", 500_000),
+            (
+                "https://github.com/onnx/models/raw/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/body_analysis/ultraface/models/version-RFB-320.onnx",
+                "version-RFB-320.onnx",
+                500_000,
+            ),
         ],
         _ => &[],
     }
@@ -901,11 +903,8 @@ fn install_whisper_model() -> Result<PathBuf> {
 }
 
 fn download(url: &str, to: &Path, min_size: u64) -> Result<()> {
-    let mut child = super::tools::quiet(&curl())
-        .args(["-sfL", "--proto", "=https", "--proto-redir", "=https", "--retry", "2", "--max-time", "1800", "-o"])
-        .arg(to)
-        .arg(url)
-        .spawn()?;
+    let mut child =
+        super::tools::quiet(&curl()).args(["-sfL", "--proto", "=https", "--proto-redir", "=https", "--retry", "2", "--max-time", "1800", "-o"]).arg(to).arg(url).spawn()?;
     super::tools::adopt(child.id());
     let ok = child.wait()?.success();
     if !ok || std::fs::metadata(to).map(|m| m.len()).unwrap_or(0) < min_size {

@@ -76,7 +76,11 @@ fn lock_html_with(html: &str, base: &str, keep_charset: bool) -> String {
     // after the doctype, so the page isn't switched to quirks mode
     let start = {
         let t = lower.trim_start_matches(['\u{feff}', ' ', '\t', '\r', '\n']);
-        if t.starts_with("<!doctype") { lower.len() - t.len() + t.find('>').map_or(0, |i| i + 1) } else { 0 }
+        if t.starts_with("<!doctype") {
+            lower.len() - t.len() + t.find('>').map_or(0, |i| i + 1)
+        } else {
+            0
+        }
     };
     out.push_str(&html[..start]);
     out.push_str(&lockdown(base));
@@ -197,10 +201,7 @@ fn to_pdf(src: &Path) -> Result<PathBuf> {
     let browser = edge.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "The browser".into());
     // Chromium from a snap (Ubuntu) has a /tmp of its own and writes only inside its own folder:
     // the page, its profile and the PDF go there, and the PDF is moved next to the file afterwards
-    let snap_dir = edge
-        .strip_prefix("/snap/bin")
-        .ok()
-        .and_then(|n| std::env::var_os("HOME").map(|h| PathBuf::from(h).join("snap").join(n).join("common").join("rotae-print")));
+    let snap_dir = edge.strip_prefix("/snap/bin").ok().and_then(|n| std::env::var_os("HOME").map(|h| PathBuf::from(h).join("snap").join(n).join("common").join("rotae-print")));
     if let Some(d) = &snap_dir {
         std::fs::create_dir_all(d)?;
     }
@@ -278,7 +279,11 @@ fn url(p: &Path) -> String {
             _ => format!("%{b:02X}"),
         })
         .collect();
-    if enc.starts_with('/') { format!("file://{enc}") } else { format!("file:///{enc}") }
+    if enc.starts_with('/') {
+        format!("file://{enc}")
+    } else {
+        format!("file:///{enc}")
+    }
 }
 
 fn format_json(src: &Path, pretty: bool) -> Result<PathBuf> {
@@ -386,7 +391,9 @@ fn keep_long_numbers(text: &str) -> (String, usize) {
             let num = &text[i..end];
             let exact = if num.contains(['.', 'e', 'E']) {
                 // a decimal survives when the shortest form of the parsed double has the same digits
-                let digits = |s: &str| s.split(['e', 'E']).next().unwrap_or(s).chars().filter(char::is_ascii_digit).collect::<String>().trim_start_matches('0').trim_end_matches('0').to_string();
+                let digits = |s: &str| {
+                    s.split(['e', 'E']).next().unwrap_or(s).chars().filter(char::is_ascii_digit).collect::<String>().trim_start_matches('0').trim_end_matches('0').to_string()
+                };
                 num.parse::<f64>().is_ok_and(|f| f.is_finite() && digits(&format!("{:e}", f.abs())) == digits(num))
             } else {
                 num.parse::<i64>().is_ok() || num.parse::<u64>().is_ok()
@@ -477,7 +484,11 @@ fn json_to_csv(src: &Path) -> Result<PathBuf> {
         };
         // a spreadsheet would run "=HYPERLINK(...)" from a stranger's data as a formula
         let s = if s.starts_with(['=', '+', '-', '@', '\t', '\r']) && s.parse::<f64>().is_err() { format!("'{s}") } else { s };
-        if s.contains([',', '"', '\n']) { format!("\"{}\"", s.replace('"', "\"\"")) } else { s }
+        if s.contains([',', '"', '\n']) {
+            format!("\"{}\"", s.replace('"', "\"\""))
+        } else {
+            s
+        }
     };
     let mut csv = keys.iter().map(|k| cell(Some(&serde_json::Value::String(k.clone())))).collect::<Vec<_>>().join(",") + "\r\n";
     for r in rows {
@@ -577,7 +588,11 @@ pub(crate) fn xml_to_value(text: &str) -> Result<serde_json::Value> {
                 return Value::String(t.clone());
             }
         }
-        if m.is_empty() { Value::Null } else { Value::Object(m) }
+        if m.is_empty() {
+            Value::Null
+        } else {
+            Value::Object(m)
+        }
     }
     let mut r = quick_xml::Reader::from_str(text);
     let mut stack: Vec<(String, Map<String, Value>)> = vec![("".into(), Map::new())];

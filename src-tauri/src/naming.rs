@@ -91,7 +91,11 @@ fn done() {
 }
 
 fn remove(p: &Path) -> bool {
-    if p.is_dir() { std::fs::remove_dir_all(p).is_ok() } else { std::fs::remove_file(p).is_ok() || !p.exists() }
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).is_ok()
+    } else {
+        std::fs::remove_file(p).is_ok() || !p.exists()
+    }
 }
 
 /// The unit failed: remove the half-written outputs and temp files it made, so no broken
@@ -188,15 +192,14 @@ pub enum Kind {
 
 pub fn kind(p: &Path) -> Kind {
     match ext(p).as_str() {
-        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" | "avif" | "heic" | "heif" | "jxl" | "jxr" | "dng" | "cr2"
-        | "cr3" | "nef" | "arw" | "orf" | "rw2" | "raf" => Kind::Image,
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" | "avif" | "heic" | "heif" | "jxl" | "jxr" | "dng" | "cr2" | "cr3" | "nef" | "arw" | "orf"
+        | "rw2" | "raf" => Kind::Image,
         "mp4" | "mov" | "mkv" | "webm" | "avi" | "m4v" | "wmv" | "flv" | "mts" | "m2ts" | "3gp" => Kind::Video,
         "mp3" | "wav" | "m4a" | "aac" | "flac" | "ogg" | "opus" | "wma" | "aiff" | "aif" => Kind::Audio,
         "pdf" => Kind::Pdf,
-        "txt" | "md" | "markdown" | "csv" | "tsv" | "json" | "log" | "xml" | "html" | "htm" | "yaml" | "yml" | "ini" | "cfg" | "conf"
-        | "toml" | "js" | "mjs" | "cjs" | "ts" | "tsx" | "jsx" | "py" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" | "cs" | "java" | "kt"
-        | "go" | "rb" | "php" | "sh" | "bash" | "ps1" | "bat" | "cmd" | "sql" | "css" | "scss" | "lua" | "swift" | "dart" | "vue"
-        | "svelte" => Kind::Text,
+        "txt" | "md" | "markdown" | "csv" | "tsv" | "json" | "log" | "xml" | "html" | "htm" | "yaml" | "yml" | "ini" | "cfg" | "conf" | "toml" | "js" | "mjs" | "cjs" | "ts"
+        | "tsx" | "jsx" | "py" | "rs" | "c" | "h" | "cpp" | "hpp" | "cc" | "cs" | "java" | "kt" | "go" | "rb" | "php" | "sh" | "bash" | "ps1" | "bat" | "cmd" | "sql" | "css"
+        | "scss" | "lua" | "swift" | "dart" | "vue" | "svelte" => Kind::Text,
         "doc" | "docx" | "docm" | "odt" | "rtf" | "xls" | "xlsx" | "xlsm" | "ods" | "ppt" | "pptx" | "odp" => Kind::Office,
         "zip" | "tar" | "gz" | "tgz" | "7z" | "rar" | "bz2" | "xz" | "zst" => Kind::Archive,
         "exe" | "dll" | "sys" | "ocx" | "scr" | "cpl" | "drv" | "efi" | "so" | "elf" => Kind::Exe,

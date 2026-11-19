@@ -104,12 +104,8 @@ const KNOWN_LINUX: &[(&str, &str, &[&str], &[&str])] = &[
 
 #[cfg(not(windows))]
 fn scan() -> Vec<App> {
-    KNOWN_LINUX
-        .iter()
-        .filter_map(|&(id, label, kinds, bins)| bins.iter().find_map(|b| crate::platform::which(b)).map(|target| App { id, label, kinds, target }))
-        .collect()
+    KNOWN_LINUX.iter().filter_map(|&(id, label, kinds, bins)| bins.iter().find_map(|b| crate::platform::which(b)).map(|target| App { id, label, kinds, target })).collect()
 }
-
 
 #[cfg(windows)]
 fn scan() -> Vec<App> {
@@ -117,11 +113,8 @@ fn scan() -> Vec<App> {
     for d in shortcut_dirs() {
         walk(&d, 4, &mut links, &|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("lnk")));
     }
-    let names: Vec<(String, PathBuf)> = links
-        .into_iter()
-        .filter_map(|p| Some((p.file_stem()?.to_string_lossy().to_lowercase(), p)))
-        .filter(|(n, _)| !SKIP.iter().any(|s| n.contains(s)))
-        .collect();
+    let names: Vec<(String, PathBuf)> =
+        links.into_iter().filter_map(|p| Some((p.file_stem()?.to_string_lossy().to_lowercase(), p))).filter(|(n, _)| !SKIP.iter().any(|s| n.contains(s))).collect();
     let mut apps = Vec::new();
     for &(id, label, kinds, prefixes) in KNOWN {
         let hit = names.iter().find(|(n, _)| prefixes.iter().any(|pre| n == pre.trim() || n.starts_with(pre)));

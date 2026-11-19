@@ -36,7 +36,11 @@ pub fn run(paths: &[PathBuf], action: &Action, progress: Progress) -> Result<Vec
 
 fn ellipsis(s: &str, n: usize) -> String {
     let one = s.replace(['\r', '\n'], " ");
-    if one.chars().count() > n { one.chars().take(n).collect::<String>() + "…" } else { one }
+    if one.chars().count() > n {
+        one.chars().take(n).collect::<String>() + "…"
+    } else {
+        one
+    }
 }
 
 // --- OCR ------------------------------------------------------------------------------------
@@ -50,7 +54,13 @@ fn ocr_ready(src: &Path) -> Result<(PathBuf, bool)> {
     let max = 4096;
     let (w, h) = img.dimensions();
     // small text reads better when enlarged a little
-    let scale = if w.max(h) > max { max as f32 / w.max(h) as f32 } else if w.max(h) < 1200 { 2.0 } else { 1.0 };
+    let scale = if w.max(h) > max {
+        max as f32 / w.max(h) as f32
+    } else if w.max(h) < 1200 {
+        2.0
+    } else {
+        1.0
+    };
     let tmp = temp_file("png");
     let img = if scale != 1.0 { img.resize((w as f32 * scale) as u32, (h as f32 * scale) as u32, imageops::FilterType::Lanczos3) } else { img };
     img.save(&tmp)?;
@@ -168,10 +178,7 @@ fn sized(sq: &RgbaImage, n: u32) -> RgbaImage {
 
 fn write_ico(sq: &RgbaImage, sizes: &[u32], out: &Path) -> Result<()> {
     use image::codecs::ico::{IcoEncoder, IcoFrame};
-    let frames: Vec<IcoFrame> = sizes
-        .iter()
-        .map(|&n| IcoFrame::as_png(sized(sq, n).as_raw(), n, n, image::ExtendedColorType::Rgba8))
-        .collect::<Result<_, _>>()?;
+    let frames: Vec<IcoFrame> = sizes.iter().map(|&n| IcoFrame::as_png(sized(sq, n).as_raw(), n, n, image::ExtendedColorType::Rgba8)).collect::<Result<_, _>>()?;
     IcoEncoder::new(std::fs::File::create(out)?).encode_images(&frames)?;
     Ok(())
 }
@@ -189,7 +196,8 @@ fn icon_set(src: &Path, web: bool) -> Result<Vec<PathBuf>> {
     }
     let dir = out_dir(src, "favicons")?;
     write_ico(&sq, &[16, 32, 48], &dir.join("favicon.ico"))?;
-    for (n, name) in [(16, "favicon-16x16.png"), (32, "favicon-32x32.png"), (180, "apple-touch-icon.png"), (192, "android-chrome-192x192.png"), (512, "android-chrome-512x512.png")] {
+    for (n, name) in [(16, "favicon-16x16.png"), (32, "favicon-32x32.png"), (180, "apple-touch-icon.png"), (192, "android-chrome-192x192.png"), (512, "android-chrome-512x512.png")]
+    {
         sized(&sq, n).save(dir.join(name))?;
     }
     std::fs::write(
@@ -219,9 +227,7 @@ fn palette(src: &Path) -> Result<PathBuf> {
         let mut sums = vec![[0f32; 3]; k];
         counts = vec![0; k];
         for p in &px {
-            let c = (0..k)
-                .min_by(|&a, &b| dist(p, &centers[a]).total_cmp(&dist(p, &centers[b])))
-                .unwrap_or(0);
+            let c = (0..k).min_by(|&a, &b| dist(p, &centers[a]).total_cmp(&dist(p, &centers[b]))).unwrap_or(0);
             counts[c] += 1;
             for i in 0..3 {
                 sums[c][i] += p[i];

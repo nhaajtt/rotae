@@ -147,11 +147,7 @@ fn push(p: &mut Option<Para>, s: &str) {
 
 fn render(p: &Para) -> String {
     let s = p.style.to_lowercase();
-    let level = if s == "title" {
-        Some(1)
-    } else {
-        s.strip_prefix("heading").and_then(|n| n.trim().parse::<usize>().ok()).map(|n| n.clamp(1, 6))
-    };
+    let level = if s == "title" { Some(1) } else { s.strip_prefix("heading").and_then(|n| n.trim().parse::<usize>().ok()).map(|n| n.clamp(1, 6)) };
     // headings are bold anyway
     let plain = || p.text.replace("**", "");
     match level {

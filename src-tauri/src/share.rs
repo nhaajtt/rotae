@@ -4,7 +4,11 @@
 //!
 //! It also translates or summarises text with the user's own Claude API key.
 
-use crate::{engines::security::{curl, curl_secret}, engines::tools::quiet, settings};
+use crate::{
+    engines::security::{curl, curl_secret},
+    engines::tools::quiet,
+    settings,
+};
 use anyhow::{bail, Context, Result};
 use std::{
     io::{Read, Write},
@@ -232,7 +236,9 @@ pub fn ask_claude(src: &Path, task: &str, lang: &str) -> Result<PathBuf> {
     }
     let lang = if lang.trim().is_empty() { "Vietnamese" } else { lang.trim() };
     let instruction = match task {
-        "translate" => format!("Translate the document below into {lang}. Keep its formatting (Markdown, line breaks, lists, code) and do not add notes. Reply with the translation only."),
+        "translate" => {
+            format!("Translate the document below into {lang}. Keep its formatting (Markdown, line breaks, lists, code) and do not add notes. Reply with the translation only.")
+        }
         _ => format!("Summarise the document below in {lang}: a one-sentence overview, then the key points as a short bullet list. Reply with the summary only."),
     };
     let body = serde_json::json!({
@@ -259,7 +265,8 @@ pub fn ask_claude(src: &Path, task: &str, lang: &str) -> Result<PathBuf> {
     if v["stop_reason"] == "refusal" {
         bail!("Claude declined this document");
     }
-    let out_text: String = v["content"].as_array().map(|a| a.iter().filter(|b| b["type"] == "text").filter_map(|b| b["text"].as_str()).collect::<Vec<_>>().join("")).unwrap_or_default();
+    let out_text: String =
+        v["content"].as_array().map(|a| a.iter().filter(|b| b["type"] == "text").filter_map(|b| b["text"].as_str()).collect::<Vec<_>>().join("")).unwrap_or_default();
     if out_text.trim().is_empty() {
         bail!("the answer was empty");
     }

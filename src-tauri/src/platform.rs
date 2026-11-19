@@ -31,12 +31,8 @@ pub fn which(name: &str) -> Option<PathBuf> {
 #[cfg(not(windows))]
 pub fn file_uri(p: &Path) -> String {
     use std::os::unix::ffi::OsStrExt;
-    let enc: String = p
-        .as_os_str()
-        .as_bytes()
-        .iter()
-        .map(|&b| if b.is_ascii_alphanumeric() || b"-_.~/".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
-        .collect();
+    let enc: String =
+        p.as_os_str().as_bytes().iter().map(|&b| if b.is_ascii_alphanumeric() || b"-_.~/".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
     format!("file://{enc}")
 }
 
@@ -52,7 +48,14 @@ pub fn xdg_open(target: impl AsRef<std::ffi::OsStr>) -> std::io::Result<()> {
 #[cfg(not(windows))]
 pub fn reveal(p: &Path) -> std::io::Result<()> {
     let shown = std::process::Command::new("dbus-send")
-        .args(["--session", "--print-reply", "--dest=org.freedesktop.FileManager1", "--type=method_call", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1.ShowItems"])
+        .args([
+            "--session",
+            "--print-reply",
+            "--dest=org.freedesktop.FileManager1",
+            "--type=method_call",
+            "/org/freedesktop/FileManager1",
+            "org.freedesktop.FileManager1.ShowItems",
+        ])
         .arg(format!("array:string:{}", file_uri(p)))
         .arg("string:")
         .output()
