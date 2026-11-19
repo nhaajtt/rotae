@@ -415,7 +415,16 @@ pub fn parse_output(parser: &str, out: &Path, scope: &Scope) -> Vec<Finding> {
 /// Adds a run and its findings to the folder's findings.json (duplicates are kept once).
 pub fn record(folder: &Path, run: Run, new: Vec<Finding>) -> Result<usize> {
     let path = folder.join(FINDINGS_FILE);
-    let mut all: Findings = std::fs::read_to_string(&path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let mut all: Findings = match std::fs::read_to_string(&path) {
+        Err(_) => Findings::default(),
+        Ok(text) => serde_json::from_str(&text).unwrap_or_else(|_| {
+            // earlier findings that can't be read are kept, never overwritten by this run's
+            let keep = folder.join("findings.broken.json");
+            let _ = std::fs::rename(&path, &keep);
+            super::note("findings.json couldn't be read; it was kept as findings.broken.json and a new one started");
+            Findings::default()
+        }),
+    };
     let before = all.findings.len();
     for f in new {
         if !all.findings.iter().any(|x| x.kind == f.kind && x.target == f.target && x.detail == f.detail) {

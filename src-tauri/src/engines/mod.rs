@@ -296,6 +296,9 @@ fn chain(paths: &[PathBuf], steps: &[Action], progress: Progress) -> Result<Vec<
     let n = steps.len().max(1) as f32;
     let mut cur = paths.to_vec();
     let mut made = Vec::new();
+    // what a custom command made is a guess (whatever appeared in the folder meanwhile, maybe a
+    // download that finished): those files are never cleaned up as in-between results
+    let mut guessed: Vec<PathBuf> = Vec::new();
     for (k, step) in steps.iter().enumerate() {
         let units: Vec<Vec<PathBuf>> = if is_group(step) { vec![cur.clone()] } else { cur.iter().map(|p| vec![p.clone()]).collect() };
         let mut next = Vec::new();
@@ -313,11 +316,14 @@ fn chain(paths: &[PathBuf], steps: &[Action], progress: Progress) -> Result<Vec<
         if next.is_empty() {
             next = cur.clone();
         }
+        if matches!(step, Action::Custom { .. }) {
+            guessed.extend(next.iter().cloned());
+        }
         made.extend(next.iter().filter(|p| !paths.contains(p)).cloned());
         cur = next;
     }
     // keep only the final results, not the files made along the way
-    for p in made.iter().filter(|p| !cur.contains(p)) {
+    for p in made.iter().filter(|p| !cur.contains(p) && !guessed.contains(p)) {
         let _ = if p.is_dir() { std::fs::remove_dir_all(p) } else { std::fs::remove_file(p) };
     }
     Ok(cur.into_iter().filter(|p| !paths.contains(p)).collect())

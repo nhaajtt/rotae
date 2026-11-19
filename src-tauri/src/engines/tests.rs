@@ -704,3 +704,33 @@ fn scratch_folder_is_private_to_the_user() {
     assert!(m.is_dir() && m.mode() & 0o077 == 0, "{} mode {:o}", root.display(), m.mode());
     assert!(crate::naming::temp_file("txt").starts_with(&root));
 }
+
+#[test]
+fn csv_quotes_only_open_at_the_start_of_a_field() {
+    let rows = super::text::parse_csv("item,size\n12\" pipe,5\n\"a, b\",\"say \"\"hi\"\"\"\n", ',');
+    assert_eq!(rows, vec![vec!["item", "size"], vec!["12\" pipe", "5"], vec!["a, b", "say \"hi\""]]);
+}
+
+#[test]
+fn redaction_covers_partly_touched_pixels() {
+    // 0.33 of 10 px wide ends inside pixel 3: that pixel is covered too
+    assert_eq!(super::image::pixel_box(&[0.1, 0.0, 0.23, 1.0], 10.0, 4.0), (1, 0, 4, 4));
+    assert_eq!(super::image::pixel_box(&[-0.5, -1.0, 3.0, 3.0], 10.0, 4.0), (0, 0, 10, 4));
+}
+
+/// A custom step's "outputs" are whatever appeared in the folder; a recipe must never delete
+/// them as in-between files (one could be a download that finished meanwhile).
+#[test]
+fn recipe_keeps_files_a_custom_step_only_seemed_to_make() {
+    let d = std::env::temp_dir().join(format!("rotae-test-chain-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    let src = d.join("start.txt");
+    std::fs::write(&src, "x").unwrap();
+    let step = |cmd: &str| super::Action::Custom { command: cmd.into() };
+    let steps = [step("echo a> unrelated.bin"), step("echo b> final.txt")];
+    let out = super::run(std::slice::from_ref(&src), &super::Action::Chain { steps: steps.to_vec() }, &|_| {}).unwrap();
+    assert!(out.iter().any(|p| p.ends_with("final.txt")), "{out:?}");
+    assert!(d.join("unrelated.bin").exists(), "a file the recipe didn't really make was deleted");
+    let _ = std::fs::remove_dir_all(&d);
+}

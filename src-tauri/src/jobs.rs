@@ -52,14 +52,27 @@ const KEEP: usize = 200;
 static HISTORY: Mutex<Option<Vec<Record>>> = Mutex::new(None);
 
 fn history_file(app: &AppHandle) -> Option<PathBuf> {
-    use tauri::Manager;
-    app.path().app_config_dir().ok().map(|d| d.join("history.json"))
+    crate::platform::config_dir(app).map(|d| d.join("history.json"))
 }
 
 fn with_history<T>(app: &AppHandle, f: impl FnOnce(&mut Vec<Record>) -> T) -> T {
     let mut h = HISTORY.lock().unwrap_or_else(|e| e.into_inner());
-    let list = h.get_or_insert_with(|| history_file(app).and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default());
+    let list = h.get_or_insert_with(|| history_file(app).map(|p| load_history(&p)).unwrap_or_default());
     f(list)
+}
+
+/// The saved Activity list. One that can't be read (cut short, edited by hand) is renamed to
+/// history.broken.json rather than silently replaced by the next job's list.
+fn load_history(p: &std::path::Path) -> Vec<Record> {
+    let Ok(text) = std::fs::read_to_string(p) else { return Vec::new() };
+    match serde_json::from_str(&text) {
+        Ok(list) => list,
+        Err(e) => {
+            let _ = std::fs::rename(p, p.with_file_name("history.broken.json"));
+            crate::log(&format!("history: unreadable ({e}), kept as history.broken.json"));
+            Vec::new()
+        }
+    }
 }
 
 fn remember(app: &AppHandle, mut r: Record) {
@@ -318,6 +331,19 @@ mod tests {
         let s = super::redact(r#"Protect { password: "Secr\"et-1" } and Decrypt { password: "abc" } Stamp { page: 0, png: "data:image/png;base64,iVBORw0K" }"#);
         assert!(!s.contains("Secr") && !s.contains("abc") && !s.contains("iVBOR"), "{s}");
         assert_eq!(s.matches("•••").count(), 3);
+    }
+
+    #[test]
+    fn unreadable_history_is_kept_aside() {
+        let d = std::env::temp_dir().join(format!("rotae-test-history-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join("history.json");
+        std::fs::write(&p, "[{\"id\":1,").unwrap();
+        assert!(super::load_history(&p).is_empty());
+        assert!(!p.exists() && d.join("history.broken.json").exists());
+        std::fs::write(&p, "[]").unwrap();
+        assert!(super::load_history(&p).is_empty() && p.exists());
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
