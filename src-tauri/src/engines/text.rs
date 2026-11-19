@@ -226,7 +226,7 @@ fn to_pdf(src: &Path) -> Result<PathBuf> {
     // a profile of its own, kept between jobs (they run one at a time), so it starts quickly
     let profile = match &snap_dir {
         Some(d) => d.join("profile"),
-        None => std::env::temp_dir().join("rotae").join("edge"),
+        None => crate::naming::temp_root().join("edge"),
     };
     let mut cmd = Command::new(edge);
     // the page may be a stranger's HTML: with no network at all (no DNS, every request sent to

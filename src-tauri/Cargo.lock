@@ -4707,6 +4707,7 @@ dependencies = [
  "gtk",
  "image 0.25.10",
  "infer 0.19.0",
+ "libc",
  "md-5",
  "moxcms",
  "ort",

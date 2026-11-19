@@ -683,3 +683,24 @@ fn file_names_stay_one_shell_word_wherever_the_placeholder_sits() {
     assert_eq!(t("echo \"`basename {file}`\""), "echo \"`basename \"${SD_FILE}\"`\"");
     assert_eq!(t("echo \"$(f (x) {file}) {dir}\""), "echo \"$(f (x) \"${SD_FILE}\") ${SD_DIR}\"");
 }
+
+#[test]
+fn ffmpeg_reads_local_inputs_only() {
+    let args: Vec<String> = ["-ss", "1", "-i", "a.mp4", "-f", "lavfi", "-i", "anullsrc", "out.mp4"].map(String::from).to_vec();
+    let got = super::tools::local_inputs(&args);
+    let at: Vec<usize> = got.iter().enumerate().filter(|(_, a)| *a == "-i").map(|(i, _)| i).collect();
+    assert_eq!(at.len(), 2);
+    for i in at {
+        assert_eq!(&got[i - 2..i], ["-protocol_whitelist", "file,pipe"]);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn scratch_folder_is_private_to_the_user() {
+    use std::os::unix::fs::MetadataExt;
+    let root = crate::naming::temp_root();
+    let m = std::fs::symlink_metadata(&root).unwrap();
+    assert!(m.is_dir() && m.mode() & 0o077 == 0, "{} mode {:o}", root.display(), m.mode());
+    assert!(crate::naming::temp_file("txt").starts_with(&root));
+}

@@ -62,7 +62,7 @@ fn convert(src: &Path, out: &Path, to: &str) -> Result<()> {
     };
     // a profile of our own, so a LibreOffice the user has open doesn't swallow the request. Jobs
     // run one at a time, so it is kept between them (a new one costs seconds to set up each time)
-    let profile = std::env::temp_dir().join("rotae").join("lo-profile");
+    let profile = crate::naming::temp_root().join("lo-profile");
     let profile_url = format!("-env:UserInstallation=file://{}{}", if cfg!(windows) { "/" } else { "" }, profile.display().to_string().replace('\\', "/").replace(' ', "%20"));
     let o = super::tools::output_within(
         super::tools::quiet(soffice).arg(profile_url).args(["--headless", "--norestore", "--nologo", "--convert-to", filter, "--outdir"]).arg(&dir).arg(src),

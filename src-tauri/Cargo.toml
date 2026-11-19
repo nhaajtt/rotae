@@ -46,6 +46,8 @@ tauri-plugin-process = "2.4.0"
 # Linux: the pointer and modifier state for Shift-drag on X11 (GTK comes with Tauri)
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+# getuid() for the private scratch folder in the shared /tmp
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
