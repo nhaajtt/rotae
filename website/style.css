@@ -165,6 +165,13 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .g-top-link:hover { color: var(--ac-soft); border-color: var(--ac); }
 .g-top-link span { color: var(--ac); }
 @keyframes g-rise { from { opacity: 0; transform: translateY(10px); } }
+/* Windows / macOS / Linux switch above the install command */
+.os-row { flex-basis: 100%; }
+.os-tabs { display: inline-flex; align-items: center; height: 36px; background: var(--pill); border: 1px solid var(--pill-line); border-radius: 9999px; box-shadow: var(--pill-edge); }
+.os-tabs button { height: 26px; }
+.os-tabs button:hover { color: var(--tp); }
+#install .os-row { margin-bottom: 12px; }
+[data-os-show][hidden] { display: none !important; }
 .g-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
 .g-tags > span { font: 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--tt); margin-right: 4px; }
 .g-tag { font: 11px/1 var(--mono); color: var(--tt); background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; }
@@ -331,3 +338,4 @@ button.hdr-cmd { font-family: var(--sans); padding-right: 10px; }
   .lab-intro-signoff path { stroke-dashoffset: 0; animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+.g-two code { font: 0.92em var(--mono); white-space: nowrap; }

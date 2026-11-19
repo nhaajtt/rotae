@@ -27,7 +27,7 @@
       <span class="hdr-cmd hdr-seg" role="group" aria-label="Language"><button data-lang="vi">VI</button><button data-lang="en">EN</button></span>
       <button id="theme" class="hdr-terminal is-plain" aria-label="Toggle dark mode">◐</button>
       <a class="hdr-terminal is-plain hide-sm" href="https://github.com/nhaajtt/rotae" target="_blank" rel="noopener" aria-label="GitHub"><svg class="gh" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg></a>
-      <a class="hdr-terminal dl desk-only" href="https://github.com/nhaajtt/rotae/releases/latest" aria-label="Download" title="Download"><span aria-hidden="true">&gt;</span><span class="hdr-terminal-cursor" aria-hidden="true">_</span></a>
+      <a id="hdr-dl" class="hdr-terminal desk-only" href="https://github.com/nhaajtt/rotae/releases/latest" aria-label="Download" title="Download"><span aria-hidden="true">&gt;</span><span class="hdr-terminal-cursor" aria-hidden="true">_</span></a>
     </div>
   </header>
 
@@ -37,19 +37,22 @@
       <p class="lab-intro-lede" data-words data-vi="<span class='lab-intro-key lab-intro-name'>ROTAE</span> của <a href='https://www.nhaajt.com' target='_blank' rel='noopener'>Nhaajt</a>. <span class='lab-intro-key'>Kéo một file</span>, <span class='lab-intro-key'>giữ Shift</span>, và một vòng tròn thao tác mở ra quanh nó: đổi định dạng, nén video, ký PDF, lấy chữ từ ảnh, gửi sang điện thoại. <span class='lab-intro-key'>Xong như phép thuật</span>, nhanh hơn cả lúc bạn đi tìm cái web convert đầy quảng cáo kia."><span class="lab-intro-key lab-intro-name">ROTAE</span> by <a href="https://www.nhaajt.com" target="_blank" rel="noopener">Nhaajt</a>. <span class="lab-intro-key">Drag a file</span>, <span class="lab-intro-key">hold Shift</span>, and a wheel of actions opens around it: convert, shrink, sign, OCR and share. <span class="lab-intro-key">Done like magic</span>, faster than you can find that one ad-stuffed converter website again.</p>
       <p class="lab-intro-note" data-vi="Miễn phí, cho Windows 10, 11, Mac và Linux. Mọi thứ chạy trên máy bạn, không tải file lên đâu cả. Mẹo: bắt đầu kéo trước, rồi mới nhấn Shift (trên Mac: nhấn vào file, giữ Shift rồi kéo; trên Linux còn có thể kéo tới dải sáng ở mép màn hình).">Free, for Windows 10, 11, Mac and Linux. Everything runs on your computer and nothing is uploaded. Tip: start dragging first, then press Shift (on a Mac: press on the file, hold Shift, then drag; on Linux you can also drag to the glowing strip at the screen edge).</p>
       <div class="g-top desk-only">
-        <div class="g-cmd">
+        <div class="os-row"><div class="os-tabs hdr-seg" role="group" aria-label="Operating system"><button type="button" data-os="win">Windows</button><button type="button" data-os="mac">macOS</button><button type="button" data-os="linux">Linux</button></div></div>
+        <div class="g-cmd" data-os-show="win">
           <span aria-hidden="true">PS&gt;</span>
           <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
-        <div class="g-cmd">
+        <div class="g-cmd" data-os-show="mac linux">
           <span aria-hidden="true">$</span>
           <code class="cmdtext">curl -fsSL https://rotae.nhaajt.com/install.sh | sh</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
-        <a id="download" class="g-top-link" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span> <span aria-hidden="true">↓</span></a>
+        <a id="download" class="g-top-link dl" data-os-show="win" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span> <span aria-hidden="true">↓</span></a>
+        <a class="g-top-link" data-os-show="mac" href="https://github.com/nhaajtt/rotae/releases/latest/download/Rotae-mac-arm64.dmg"><span data-vi="Tải .dmg">Download .dmg</span> <span aria-hidden="true">↓</span></a>
+        <a class="g-top-link" data-os-show="linux" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Gói .deb · .rpm · AppImage">.deb · .rpm · AppImage</span> <span aria-hidden="true">↗</span></a>
       </div>
-      <p class="g-fine desk-only"><span id="version">x64</span> · <span data-vi="Windows: dán vào PowerShell, không cần quyền admin · Mac và Linux: dán vào Terminal">Windows: paste into PowerShell, no admin needed · Mac and Linux: paste into Terminal</span></p>
+      <p class="g-fine desk-only"><span id="version">Rotae</span> · <span data-os-show="win"><span class="exe-size">x64</span> · <span data-vi="Dán vào PowerShell, không cần quyền admin">Paste into PowerShell, no admin needed</span></span><span data-os-show="mac" data-vi="Mac chip Apple (M1 trở lên), macOS 14+ · Dán vào Terminal, không cần mật khẩu">Apple silicon (M1 or later), macOS 14+ · Paste into Terminal, no password</span><span data-os-show="linux" data-vi="x86-64 · Ubuntu, Debian, Kali, Fedora và các bản khác · Dán vào Terminal">x86-64 · Ubuntu, Debian, Kali, Fedora and others · Paste into Terminal</span></p>
       <div class="on-phone">
         <p data-vi="Rotae là app cho máy tính Windows, Mac và Linux. Gửi link sang máy tính để cài nhé:">Rotae is a computer app for Windows, Mac and Linux. Send the link to your computer:</p>
         <div class="row">
@@ -65,7 +68,9 @@
     <aside class="lab-intro-readout" aria-label="Rotae">
       <p class="lab-intro-meta"><b id="clock">--:--:--</b><i aria-hidden="true">·</i><span data-vi="trên máy bạn">on your PC</span></p>
       <div class="lab-intro-controls">
-        <a class="lab-intro-hi dl desk-only" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span><span aria-hidden="true">↓</span></a>
+        <a class="lab-intro-hi dl desk-only" data-os-show="win" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Tải .exe">Download .exe</span><span aria-hidden="true">↓</span></a>
+        <a class="lab-intro-hi desk-only" data-os-show="mac" href="https://github.com/nhaajtt/rotae/releases/latest/download/Rotae-mac-arm64.dmg"><span data-vi="Tải .dmg">Download .dmg</span><span aria-hidden="true">↓</span></a>
+        <a class="lab-intro-hi desk-only" data-os-show="linux" href="https://github.com/nhaajtt/rotae/releases/latest"><span data-vi="Gói Linux">Linux packages</span><span aria-hidden="true">↗</span></a>
         <a class="lab-intro-hi" href="https://github.com/nhaajtt/rotae" target="_blank" rel="noopener"><span data-vi="Mã nguồn">Source</span><span aria-hidden="true">↗</span></a>
         <a class="lab-intro-hi" href="#faq"><span>FAQ</span><span aria-hidden="true">→</span></a>
       </div>
@@ -210,24 +215,32 @@
       <p class="g-kicker" data-vi="CÀI ĐẶT · WINDOWS 10/11 · MAC · LINUX">INSTALL · WINDOWS 10/11 · MAC · LINUX</p>
       <h2 class="g-title" data-vi="File của bạn đang chờ">Your files are waiting</h2>
       <div class="desk-only">
-        <div class="g-cmd">
+        <div class="os-row"><div class="os-tabs hdr-seg" role="group" aria-label="Operating system"><button type="button" data-os="win">Windows</button><button type="button" data-os="mac">macOS</button><button type="button" data-os="linux">Linux</button></div></div>
+        <div class="g-cmd" data-os-show="win">
           <span aria-hidden="true">PS&gt;</span>
           <code class="cmdtext">powershell -c &quot;irm https://rotae.nhaajt.com/install.ps1 | iex&quot;</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
-        <div class="g-cmd">
+        <div class="g-cmd" data-os-show="mac linux">
           <span aria-hidden="true">$</span>
           <code class="cmdtext">curl -fsSL https://rotae.nhaajt.com/install.sh | sh</code>
           <button type="button" class="g-btn copy-cmd" data-vi="Chép">Copy</button>
         </div>
       </div>
       <button class="g-btn share-again on-phone-inline" data-vi="Gửi link sang máy tính">Send the link to my PC</button>
-      <div class="g-two">
+      <div class="g-two" data-os-show="win">
         <p><b data-vi="Một dòng trong PowerShell.">One line in PowerShell.</b> <span data-vi="Tải bộ cài từ GitHub Releases, kiểm tra SHA-256 rồi cài lặng lẽ, chỉ cho tài khoản của bạn. Chạy lại để cập nhật.">Downloads the installer from GitHub Releases, checks its SHA-256 and installs it quietly, for your user only. Run it again to update.</span> <a href="/install.ps1" data-vi="Đọc script trước">Read the script first</a></p>
-        <p><b data-vi="Mac và Linux: một dòng trong Terminal.">Mac and Linux: one line in a terminal.</b> <span data-vi="Trên Mac: cài Rotae.app vào Applications và lệnh rotae, không cần mật khẩu. ">On a Mac: installs Rotae.app in Applications and the rotae command, no password. </span><span data-vi="Trên Linux: ">On Linux: </span> <span data-vi="chọn gói hợp với máy (.deb cho Ubuntu, Debian, Kali; .rpm cho Fedora; AppImage cho bản khác), kiểm tra SHA-256 rồi cài. Thêm --pentest để cài luôn công cụ cho Chế độ pentest trên Kali.">picks the package that fits (.deb for Ubuntu, Debian and Kali, .rpm for Fedora, AppImage anywhere else), checks its SHA-256 and installs it. Add --pentest to also install the tools Pentest user mode uses on Kali.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
         <p><b data-vi="Hoặc bộ cài.">Or the installer.</b> <span data-vi="Chưa ký code nên Windows sẽ hỏi trước khi chạy: More info, rồi Run anyway.">It isn't signed yet, so Windows asks before running it: More info, then Run anyway.</span> <a class="dl" href="https://github.com/nhaajtt/rotae/releases/latest" data-vi="Tải .exe">Download .exe</a></p>
       </div>
-      <p class="g-fine" data-vi="8 MB, một phút cài đặt, không đăng ký, không drama.">8 MB, a minute to install, no signup, no drama.</p>
+      <div class="g-two" data-os-show="mac">
+        <p><b data-vi="Một dòng trong Terminal.">One line in Terminal.</b> <span data-vi="Cài Rotae.app vào Applications và lệnh rotae, không cần mật khẩu. Script kiểm tra SHA-256 và chữ ký nên macOS không hiện cảnh báo. Chạy lại để cập nhật; thêm <code>--uninstall</code> để gỡ.">Installs Rotae.app in Applications and the rotae command, no password. The script checks the SHA-256 and signature, so macOS shows no warning. Run it again to update; add <code>--uninstall</code> to remove it.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
+        <p><b data-vi="Hoặc file .dmg.">Or the .dmg.</b> <span data-vi="Chưa notarize nên macOS sẽ chặn lần đầu: System Settings › Privacy &amp; Security › Open Anyway.">It isn't notarized yet, so macOS blocks it the first time: System Settings › Privacy &amp; Security › Open Anyway.</span> <a href="https://github.com/nhaajtt/rotae/releases/latest/download/Rotae-mac-arm64.dmg" data-vi="Tải .dmg">Download .dmg</a></p>
+      </div>
+      <div class="g-two" data-os-show="linux">
+        <p><b data-vi="Một dòng trong Terminal.">One line in a terminal.</b> <span data-vi="Chọn gói hợp với máy (.deb cho Ubuntu, Debian, Kali; .rpm cho Fedora; AppImage cho bản khác), kiểm tra SHA-256 rồi cài. Thêm <code>--pentest</code> để cài luôn công cụ cho Chế độ pentest trên Kali.">Picks the package that fits (.deb for Ubuntu, Debian and Kali, .rpm for Fedora, AppImage anywhere else), checks its SHA-256 and installs it. Add <code>--pentest</code> to also install the tools Pentest user mode uses on Kali.</span> <a href="/install.sh" data-vi="Đọc script trước">Read the script first</a></p>
+        <p><b data-vi="Hoặc tự chọn gói.">Or pick a package.</b> <span data-vi="Có .deb, .rpm và AppImage trên GitHub Releases.">The .deb, .rpm and AppImage are on GitHub Releases.</span> <a href="https://github.com/nhaajtt/rotae/releases/latest" data-vi="Mở Releases">Open Releases</a></p>
+      </div>
+      <p class="g-fine" data-vi="Một phút cài đặt, không đăng ký, không drama.">A minute to install, no signup, no drama.</p>
     </section>
 
     <section class="g-band reveal" id="feedback">
