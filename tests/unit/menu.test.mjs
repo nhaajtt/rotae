@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { golden, memoryStorage } from './golden.mjs';
 
@@ -92,7 +91,5 @@ test('every action the UI can send, for the Rust side to check it parses', () =>
   }
   const all = [...seen.values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   golden('actions', all);
-  mkdirSync(new URL('../fixtures/', import.meta.url), { recursive: true });
-  writeFileSync(new URL('../fixtures/actions.json', import.meta.url), `${JSON.stringify(all, null, 1)}\n`);
   assert.ok(all.length > 40);
 });

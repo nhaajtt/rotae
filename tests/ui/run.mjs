@@ -126,29 +126,33 @@ async function openPage(path, scn = {}, size = [960, 680]) {
 let failed = 0;
 let passed = 0;
 const started = Date.now();
-for (const f of flows.filter((x) => x.name.includes(ONLY))) {
-  const page = await openPage(f.path, f.scn, f.size);
-  try {
-    await f.run(page, assert);
-    assert.deepEqual(page.errors, [], 'uncaught errors in the page');
-    if (f.todo) throw Object.assign(new Error(`marked todo but passes now: remove todo`), { todoPassed: true });
-    passed++;
-    console.log(`ok   ${f.name}`);
-  } catch (e) {
-    if (f.todo) {
-      console.log(`todo ${f.name} (${f.todo})`);
-      continue;
+try {
+  for (const f of flows.filter((x) => x.name.includes(ONLY))) {
+    let page;
+    try {
+      page = await openPage(f.path, f.scn, f.size);
+      await f.run(page, assert);
+      assert.deepEqual(page.errors, [], 'uncaught errors in the page');
+      if (f.todo) throw Object.assign(new Error('marked todo but passes now: remove todo'), { todoPassed: true });
+      passed++;
+      console.log(`ok   ${f.name}`);
+    } catch (e) {
+      if (f.todo && !e.todoPassed) {
+        console.log(`todo ${f.name} (${f.todo})`);
+        continue;
+      }
+      failed++;
+      console.log(`FAIL ${f.name}\n     ${String(e.stack || e).split('\n').slice(0, 4).join('\n     ')}`);
+    } finally {
+      await page?.close().catch(() => {});
     }
-    failed++;
-    console.log(`FAIL ${f.name}\n     ${String(e.stack || e).split('\n').slice(0, 4).join('\n     ')}`);
-  } finally {
-    await page.close();
   }
+} finally {
+  console.log(`\n${passed} passed, ${failed} failed (${((Date.now() - started) / 1000).toFixed(1)} s)`);
+  ws.close();
+  chrome.kill();
+  await server.close();
+  await sleep(200);
+  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
-console.log(`\n${passed} passed, ${failed} failed (${((Date.now() - started) / 1000).toFixed(1)} s)`);
-ws.close();
-chrome.kill();
-await server.close();
-await sleep(200);
-rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 process.exit(failed ? 1 : 0);

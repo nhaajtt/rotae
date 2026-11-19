@@ -10,11 +10,12 @@ const DIR = join(dirname(fileURLToPath(import.meta.url)), 'golden');
 export function golden(name, value) {
   const file = join(DIR, `${name}.json`);
   const text = `${JSON.stringify(value, null, 1)}\n`;
-  if (process.env.UPDATE_GOLDEN || process.env.npm_lifecycle_event === 'test:update' || !existsSync(file)) {
+  if (process.env.UPDATE_GOLDEN || process.env.npm_lifecycle_event === 'test:update') {
     mkdirSync(DIR, { recursive: true });
     writeFileSync(file, text);
     return;
   }
+  assert.ok(existsSync(file), `golden file ${name}.json is missing; create it with npm run test:update`);
   assert.deepEqual(JSON.parse(text), JSON.parse(readFileSync(file, 'utf8')), `${name}.json no longer matches; run npm run test:update if the change is intended`);
 }
 

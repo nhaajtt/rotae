@@ -24,7 +24,10 @@ const steps = [
 const failed = [];
 for (const [name, cmd, args, cwd] of steps) {
   console.log(`\n▶ ${name}`);
-  const r = spawnSync(cmd, args, { stdio: 'inherit', cwd: cwd || process.cwd(), shell: process.platform === 'win32' });
+  // npx and cargo are .cmd/.exe shims on Windows, so they go through the shell there; quote
+  // anything with spaces (a temp folder under a user name with a space) for cmd.exe
+  const win = process.platform === 'win32';
+  const r = spawnSync(cmd, win ? args.map((a) => (/[\s&()^]/.test(a) ? `"${a}"` : a)) : args, { stdio: 'inherit', cwd: cwd || process.cwd(), shell: win });
   if (r.status !== 0) failed.push(name);
 }
 rmSync(out, { recursive: true, force: true });
